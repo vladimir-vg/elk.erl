@@ -3,3 +3,6 @@ ebin
 
 # text editor cache
 .redcar
+
+# generated pasrse
+src/elk_parser.erl
