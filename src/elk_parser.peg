@@ -1,1 +1,43 @@
-template <- "";
+template <- (tag / text)* ~;
+
+tag <-
+    var_escaped1 /
+    var_escaped2 /
+    var ~;
+
+text <- (!tag .)+ `{text, iolist_to_binary(Node)}`;
+
+var <-
+    prefix:(NL WS*)? "{{"  WS* key:id WS* "}}" postfix:(WS* NL)?
+    `
+    {var,
+      ?iol2b(proplists:get_value(key, Node)),
+      ?iol2b(proplists:get_value(prefix, Node)),
+      ?iol2b(proplists:get_value(postfix, Node))}`;
+
+var_escaped1 <-
+    prefix:(NL WS*)? "{{{" WS* key:id WS* "}}}" postfix:(WS* NL)?
+    `
+    {var_escaped,
+      ?iol2b(proplists:get_value(key, Node)),
+      ?iol2b(proplists:get_value(prefix, Node)),
+      ?iol2b(proplists:get_value(postfix, Node))}`;
+
+var_escaped2 <-
+    prefix:(NL WS*)? "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?
+    `
+    {var_escaped,
+      ?iol2b(proplists:get_value(key, Node)),
+      ?iol2b(proplists:get_value(prefix, Node)),
+      ?iol2b(proplists:get_value(postfix, Node))}
+    `;
+
+id <- [^\s{}]+ ~;
+WS <- [\t ];
+NL <- "\r"? "\n";
+
+`
+%% Macros
+
+-define(iol2b(X), iolist_to_binary(X)).
+`
