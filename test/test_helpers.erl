@@ -19,9 +19,9 @@ make_contexts_nested({List}) when is_list(List) ->
 make_contexts_nested(Value) -> Value.
 
 construct_test({proplist, Args}) ->
-	Desc = proplists:get_value(<<"desc">>, Args),
+	Name = proplists:get_value(<<"name">>, Args),
 	Data = proplists:get_value(<<"data">>, Args),
 	Source = proplists:get_value(<<"template">>, Args),
 	Expected = proplists:get_value(<<"expected">>, Args),
 	Template = elk:compile(Source),
-	{Desc, ?_assertEqual(Expected, elk:render(Template, Data))}.
+	{Name, ?_assertEqual(Expected, elk:render(Template, Data))}.
