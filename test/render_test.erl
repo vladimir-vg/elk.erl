@@ -40,3 +40,15 @@ func_var_test() ->
 	?assertEqual(
 		<<"value is 'World' also as (World)">>,
 		elk:render(elk:compile("value is '{{& value }}' also as {{& parenthesed }}"), Context)).
+
+bool_block_test() ->
+	Context = {proplist, [{<<"var">>, true}]},
+	?assertEqual(
+		<<"true">>,
+		elk:render(elk:compile("{{#var}}true{{/var}}"), Context)).
+
+nested_block_test() ->
+	Context = {proplist, [{<<"a">>, {proplist, [{<<"b">>, "TADA!"}]}}]},
+	?assertEqual(
+		<<" TADA! ">>,
+		elk:render(elk:compile("{{#a}} {{b}} {{/a}}"), Context)).

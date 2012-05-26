@@ -18,11 +18,13 @@ render({elk_template, Tree}, Context) ->
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
+is_standalone(Prefix, Postfix) ->
+	not ((Prefix =:= <<>>) or (Postfix =:= <<>>)).
+
 %% this function just checks standalone-ness and inserts (or not)
 %% postfix and prefix whitespace
-render_tag(Value, Postfix, Prefix, Acc, Escaped) ->
-	Standalone = not ((Prefix =:= <<>>) or (Postfix =:= <<>>)),
-	case {Standalone, ?is_falsy(Value)} of
+render_tag(Value, Prefix, Postfix, Acc, Escaped) ->
+	case {is_standalone(Prefix, Postfix), ?is_falsy(Value)} of
 		{true,  true}  -> Acc;
 		{false, true}  -> [Postfix, Prefix | Acc];
 		{_,     false} -> [Postfix, stringify(Value, Escaped), Prefix | Acc]
@@ -36,6 +38,29 @@ render_iolist([{raw_var, Key, Prefix, Postfix} | Tree], State, Acc) ->
 render_iolist([{var, Key, Prefix, Postfix} | Tree], State, Acc) ->
 	Value = get(Key, State),
 	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc, true));
+render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
+	[{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}] = WS,
+	Value = get(Key, State),
+	case {Value, ?is_falsy(Value)} of
+		%% TODO: check is Kind from contexts list.
+		%% What if user pass tuple just to use it as boolean?
+		{{Kind, Context}, false} ->
+			Contexts = [ {Kind, Context} | State#state.contexts ],
+			SubText = render_iolist(SubTree, State#state{contexts=Contexts}, []),
+			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
+			render_iolist(Tree, State, NewAcc);
+		{_, true} ->
+			case {is_standalone(StartPrefix, StartPostfix), is_standalone(EndPrefix, EndPostfix)} of
+				{true, true} -> render_iolist(Tree, State, Acc);
+				{true, false} -> render_iolist(Tree, State, [EndPostfix | Acc]);
+				{false, true} -> render_iolist(Tree, State, [StartPrefix | Acc]);
+				{false, false} -> render_iolist(Tree, State, [StartPrefix, EndPrefix | Acc])
+			end;
+		{Value, false} ->
+			SubText = render_iolist(SubTree, State, []),
+			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
+			render_iolist(Tree, State, NewAcc)
+	end;
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
