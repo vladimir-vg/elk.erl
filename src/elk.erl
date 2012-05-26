@@ -18,41 +18,45 @@ render({elk_template, Tree}, Context) ->
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
+%% this function just checks standalone-ness and inserts (or not)
+%% postfix and prefix whitespace
+render_tag(Value, Postfix, Prefix, Acc) ->
+	Standalone = not ((Prefix =:= <<>>) or (Postfix =:= <<>>)),
+	case {Standalone, ?is_falsy(Value)} of
+		{true,  true}  -> Acc;
+		{false, true}  -> [Postfix, Prefix | Acc];
+		{_,     false} -> [Postfix, stringify(Value), Prefix | Acc]
+	end.
+
 render_iolist([{text, Text} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [Text | Acc]);
 render_iolist([{raw_var, Key, Prefix, Postfix} | Tree], State, Acc) ->
-	Value = get(Key, State#state.contexts),
-	Standalone = not ((Prefix =:= <<>>) or (Postfix =:= <<>>)),
-	case {Standalone, ?is_falsy(Value)} of
-		{true,  true}  -> render_iolist(Tree, State, Acc);
-		{false, true}  -> render_iolist(Tree, State, [Postfix, Prefix | Acc]);
-		{_,     false} -> render_iolist(Tree, State, [Postfix, iolistify(Value), Prefix | Acc])
-	end;
+	Value = get(Key, State),
+	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc));
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
-getter_func(Kind) ->
+get(Key, State) ->
+	Contexts = State#state.contexts,
+	get_from_contexts(Key, Contexts).
+
+get_value(Key, {Kind, Context}) ->
 	Contexts = case application:get_env(elk, contexts) of
 		undefined -> [{proplist, elk_proplist_context}];
 		Value -> Value
 	end,
 	Module = proplists:get_value(Kind, Contexts),
-	(fun Module:get/2).
+	Module:get(Key, Context).
 
-get_value(Key, {Kind, Context}) ->
-	Fun = getter_func(Kind),
-	Fun(Key, Context).
-
-get(Key, [Context | ContextsList]) ->
+get_from_contexts(Key, [Context | ContextsList]) ->
 	case get_value(Key, Context) of
-		undefined -> get(Key, ContextsList);
+		undefined -> get_from_contexts(Key, ContextsList);
 		Value     -> Value
 	end;
-get(_Key, []) ->
+get_from_contexts(_Key, []) ->
 	undefined.
 
-%% Probably in parallel universe this function will be named as 'stringify'
-%% But actually result of it doesn't require to be a string, enough to be
-%% iolist.
-iolistify(undefined) -> "";
-iolistify(Value) when is_binary(Value); is_list(Value) -> Value.
+stringify(true) -> "true";
+stringify(false) -> "";
+stringify(undefined) -> "";
+stringify(Value) when is_binary(Value); is_list(Value) -> Value.
