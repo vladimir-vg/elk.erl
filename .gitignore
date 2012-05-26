@@ -1,5 +1,6 @@
 deps
 ebin
+.eunit
 
 # text editor cache
 .redcar
