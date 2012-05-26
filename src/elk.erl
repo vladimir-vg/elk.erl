@@ -20,19 +20,22 @@ render({elk_template, Tree}, Context) ->
 
 %% this function just checks standalone-ness and inserts (or not)
 %% postfix and prefix whitespace
-render_tag(Value, Postfix, Prefix, Acc) ->
+render_tag(Value, Postfix, Prefix, Acc, Escaped) ->
 	Standalone = not ((Prefix =:= <<>>) or (Postfix =:= <<>>)),
 	case {Standalone, ?is_falsy(Value)} of
 		{true,  true}  -> Acc;
 		{false, true}  -> [Postfix, Prefix | Acc];
-		{_,     false} -> [Postfix, stringify(Value), Prefix | Acc]
+		{_,     false} -> [Postfix, stringify(Value, Escaped), Prefix | Acc]
 	end.
 
 render_iolist([{text, Text} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [Text | Acc]);
 render_iolist([{raw_var, Key, Prefix, Postfix} | Tree], State, Acc) ->
 	Value = get(Key, State),
-	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc));
+	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc, false));
+render_iolist([{var, Key, Prefix, Postfix} | Tree], State, Acc) ->
+	Value = get(Key, State),
+	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc, true));
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
@@ -63,7 +66,19 @@ get_from_contexts(Key, [Context | ContextsList]) ->
 get_from_contexts(_Key, []) ->
 	undefined.
 
-stringify(true) -> "true";
-stringify(false) -> "";
-stringify(undefined) -> "";
-stringify(Value) when is_binary(Value); is_list(Value) -> Value.
+stringify(true, _) -> "true";
+stringify(false, _) -> "";
+stringify(undefined, _) -> "";
+stringify(Value, Escaped) when is_binary(Value); is_list(Value) ->
+	case Escaped of
+		true -> escape(binary_to_list(iolist_to_binary(Value)));
+		false -> Value
+	end.
+
+escape(Text)             -> escape(Text, []).
+escape([$< | Text], Acc) -> escape(Text, [ <<"&lt;">> | Acc]);
+escape([$> | Text], Acc) -> escape(Text, [ <<"&gt;">> | Acc]);
+escape([$& | Text], Acc) -> escape(Text, [ <<"&amp;">> | Acc]);
+escape([$" | Text], Acc) -> escape(Text, [ <<"&quot;">> | Acc]);
+escape([C  | Text], Acc) -> escape(Text, [C | Acc]);
+escape([], Acc)          -> lists:reverse(Acc).

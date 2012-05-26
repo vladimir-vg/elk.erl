@@ -24,6 +24,12 @@ raw_var_test() ->
 		<<"hello">>,
 		elk:render(elk:compile("hello\n {{& var }}\n"))).
 
+escaped_var_test() ->
+	Context = {proplist, [{<<"var">>, <<"\" <tag> & friends">>}]},
+	?assertEqual(
+		<<"hello &quot; &lt;tag&gt; &amp; friends">>,
+		elk:render(elk:compile("hello {{ var }}"), Context)).
+
 func_var_test() ->
 	Fun = fun (Context) ->
 		Value = elk:get_value(<<"value">>, Context),
