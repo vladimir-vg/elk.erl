@@ -23,7 +23,7 @@ block_start <-
     prefix:(NL WS*)? "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 inverse_start <-
-    prefix:(NL WS*)? "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:(NL WS*)? "{{^" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 block_end <-
     prefix:(NL WS*)? "{{/" WS* key:id WS* "}}" postfix:(WS* NL)?;
