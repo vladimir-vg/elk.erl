@@ -4,8 +4,8 @@ tag <-
     block_start /
     inverse_start /
     block_end /
-    var_escaped1 /
-    var_escaped2 /
+    var_raw1 /
+    var_raw2 /
     partial /
     comment /
     var;
@@ -15,10 +15,10 @@ text <- (!tag .)+;
 var <-
     prefix:(NL WS*)? "{{"  WS* key:id WS* "}}" postfix:(WS* NL)?;
 
-var_escaped1 <-
+var_raw1 <-
     prefix:(NL WS*)? "{{{" WS* key:id WS* "}}}" postfix:(WS* NL)?;
 
-var_escaped2 <-
+var_raw2 <-
     prefix:(NL WS*)? "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 partial <-

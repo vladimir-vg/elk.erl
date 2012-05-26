@@ -49,8 +49,8 @@ block_transform([], [], Acc) ->
 transform(text, Node, _Index) -> {text, ?iol2b(Node)};
 
 transform(var,           Node, _Index) -> prefix_key_postfix(var,           Node);
-transform(var_escaped1,  Node, _Index) -> prefix_key_postfix(escaped,       Node);
-transform(var_escaped2,  Node, _Index) -> prefix_key_postfix(escaped,       Node);
+transform(var_raw1,      Node, _Index) -> prefix_key_postfix(raw_var,       Node);
+transform(var_raw2,      Node, _Index) -> prefix_key_postfix(raw_var,       Node);
 transform(partial,       Node, _Index) -> prefix_key_postfix(partial,       Node);
 transform(block_start,   Node, _Index) -> prefix_key_postfix(block_start,   Node);
 transform(inverse_start, Node, _Index) -> prefix_key_postfix(inverse_start, Node);
