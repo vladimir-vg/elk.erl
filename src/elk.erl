@@ -1,7 +1,7 @@
 -module(elk).
 -author("Gordeev Vladimir <gordeev.vladimir.v@gmail.com>").
 
--export([compile/1, get_value/2, render/1, render/2]).
+-export([compile/1, get_value/2, render/1, render/2, render/3]).
 
 -define(is_falsy(V), ((V =:= undefined) or (V =:= false))).
 -record(state, {top, contexts, partials}).
@@ -14,7 +14,10 @@ render({elk_template, Tree}) ->
 	render({elk_template, Tree}, {proplist, []}).
 
 render({elk_template, Tree}, Context) ->
-	State = #state{contexts=[Context], top=Context},
+	render({elk_template, Tree}, Context, {proplist, []}).
+
+render({elk_template, Tree}, Context, Partials) ->
+	State = #state{contexts=[Context], top=Context, partials=Partials},
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
@@ -76,6 +79,18 @@ render_iolist([{inverse, Key, WS, SubTree} | Tree], State, Acc) ->
 			SubText = render_iolist(SubTree, State, []),
 			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
 			render_iolist(Tree, State, NewAcc)
+	end;
+render_iolist([{partial, Key, Prefix, Postfix} | Tree], State, Acc) ->
+	Template = get_value(Key, State#state.partials),
+	case Template of
+		{elk_template, SubTree} ->
+			IOList = render_iolist(SubTree, State, []),
+			render_iolist(Tree, State, [Prefix, lists:reverse(IOList), Postfix | Acc]);
+		_ ->
+			case is_standalone(Prefix, Postfix) of
+				true -> render_iolist(Tree, State, Acc);
+				false -> render_iolist(Tree, State, [Prefix, Postfix | Acc])
+			end
 	end;
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
