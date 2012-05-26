@@ -92,6 +92,11 @@ render_iolist([{partial, Key, Prefix, Postfix} | Tree], State, Acc) ->
 				false -> render_iolist(Tree, State, [Prefix, Postfix | Acc])
 			end
 	end;
+render_iolist([{comment, Prefix, Postfix} | Tree], State, Acc) ->
+	case is_standalone(Prefix, Postfix) of
+		true -> render_iolist(Tree, State, Acc);
+		false -> render_iolist(Tree, State, [Prefix, Postfix | Acc])
+	end;
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
