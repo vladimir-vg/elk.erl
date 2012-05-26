@@ -51,9 +51,15 @@ transform(text, Node, _Index) -> {text, ?iol2b(Node)};
 transform(var,           Node, _Index) -> prefix_key_postfix(var,           Node);
 transform(var_escaped1,  Node, _Index) -> prefix_key_postfix(escaped,       Node);
 transform(var_escaped2,  Node, _Index) -> prefix_key_postfix(escaped,       Node);
+transform(partial,       Node, _Index) -> prefix_key_postfix(partial,       Node);
 transform(block_start,   Node, _Index) -> prefix_key_postfix(block_start,   Node);
 transform(inverse_start, Node, _Index) -> prefix_key_postfix(inverse_start, Node);
 transform(block_end,     Node, _Index) -> prefix_key_postfix(block_end,     Node);
+
+transform(comment, Node, _Index) ->
+	Prefix = ?iol2b(?get(prefix, Node)),
+	Postfix = ?iol2b(?get(postfix, Node)),
+	{comment, Prefix, Postfix};
 
 transform(template, Node, _Index) ->
 	block_transform(Node, [], []);

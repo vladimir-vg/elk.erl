@@ -6,6 +6,8 @@ tag <-
     block_end /
     var_escaped1 /
     var_escaped2 /
+    partial /
+    comment /
     var;
 
 text <- (!tag .)+;
@@ -18,6 +20,12 @@ var_escaped1 <-
 
 var_escaped2 <-
     prefix:(NL WS*)? "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?;
+
+partial <-
+    prefix:(NL WS*)? "{{>" WS* key:id WS* "}}" postfix:(WS* NL)?;
+
+comment <-
+    prefix:(NL WS*)? "{{!" (!"}}" .)* "}}" postfix:(WS* NL)?;
 
 block_start <-
     prefix:(NL WS*)? "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;

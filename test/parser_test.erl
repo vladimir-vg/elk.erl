@@ -10,6 +10,11 @@ basic_test() ->
 		[{text, <<"aaa">>}, {var, <<"key">>, <<>>, <<>>}, {text, <<"bbb">>}],
 		elk_parser:parse("aaa{{key}}bbb")).
 
+comment_test() ->
+	?assertEqual(
+		[{text, <<" ">>}, {comment, <<>>, <<" \r\n">>}],
+		elk_parser:parse(" {{! ololo! \r\n\n huh! %^&*() }} \r\n")).
+
 block_test() ->
 	?assertEqual(
 		[{block, <<"key">>, [{<<>>, <<>>}, {<<>>, <<>>}], [{text, <<" text ">>}]}],
