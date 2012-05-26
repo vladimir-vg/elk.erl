@@ -6,7 +6,20 @@
 -compile(export_all).
 
 text_test() ->
-	Template = elk:compile("text"),
 	?assertEqual(
 		<<"text">>,
-		elk:render(Template)).
+		elk:render(elk:compile("text"))).
+
+raw_var_test() ->
+	Context = {proplist, [{<<"var">>, <<"world">>}]},
+	?assertEqual(
+		<<"hello world">>,
+		elk:render(elk:compile("hello {{& var }}"), Context)),
+	
+	?assertEqual(
+		<<"hello ">>,
+		elk:render(elk:compile("hello {{& var }}"))),
+	
+	?assertEqual(
+		<<"hello">>,
+		elk:render(elk:compile("hello\n {{& var }}\n"))).
