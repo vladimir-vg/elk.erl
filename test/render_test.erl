@@ -45,7 +45,15 @@ bool_block_test() ->
 	Context = {proplist, [{<<"var">>, true}]},
 	?assertEqual(
 		<<"true">>,
-		elk:render(elk:compile("{{#var}}true{{/var}}"), Context)).
+		elk:render(elk:compile("{{#var}}true{{/var}}"), Context)),
+	
+	?assertEqual(
+		<<>>,
+		elk:render(elk:compile("{{^var}}true{{/var}}"), Context)),
+	
+	?assertEqual(
+		<<"true">>,
+		elk:render(elk:compile("{{^var}}true{{/var}}"))).
 
 nested_block_test() ->
 	Context = {proplist, [{<<"a">>, {proplist, [{<<"b">>, "TADA!"}]}}]},

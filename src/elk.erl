@@ -61,6 +61,22 @@ render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
 			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
 			render_iolist(Tree, State, NewAcc)
 	end;
+render_iolist([{inverse, Key, WS, SubTree} | Tree], State, Acc) ->
+	[{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}] = WS,
+	Value = get(Key, State),
+	case ?is_falsy(Value) of
+		false ->
+			case {is_standalone(StartPrefix, StartPostfix), is_standalone(EndPrefix, EndPostfix)} of
+				{true, true} -> render_iolist(Tree, State, Acc);
+				{true, false} -> render_iolist(Tree, State, [EndPostfix | Acc]);
+				{false, true} -> render_iolist(Tree, State, [StartPrefix | Acc]);
+				{false, false} -> render_iolist(Tree, State, [StartPrefix, EndPrefix | Acc])
+			end;
+		true ->
+			SubText = render_iolist(SubTree, State, []),
+			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
+			render_iolist(Tree, State, NewAcc)
+	end;
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
