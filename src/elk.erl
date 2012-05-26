@@ -1,10 +1,10 @@
 -module(elk).
 -author("Gordeev Vladimir <gordeev.vladimir.v@gmail.com>").
 
--export([compile/1, render/1, render/2]).
+-export([compile/1, get_value/2, render/1, render/2]).
 
 -define(is_falsy(V), ((V =:= undefined) or (V =:= false))).
--record(state, {contexts, partials}).
+-record(state, {top, contexts, partials}).
 
 compile(Source) ->
 	Tree = elk_parser:parse(Source),
@@ -14,7 +14,7 @@ render({elk_template, Tree}) ->
 	render({elk_template, Tree}, {proplist, []}).
 
 render({elk_template, Tree}, Context) ->
-	State = #state{contexts=[Context]},
+	State = #state{contexts=[Context], top=Context},
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
@@ -38,7 +38,14 @@ render_iolist([], _State, Acc) ->
 
 get(Key, State) ->
 	Contexts = State#state.contexts,
-	get_from_contexts(Key, Contexts).
+	Value = get_from_contexts(Key, Contexts),
+	case Value of
+		Fun when is_function(Fun, 1) ->
+			Fun(State#state.top);
+		Fun when is_function(Fun, 2) ->
+			Fun(State#state.top, State#state.partials);
+		Any -> Any
+	end.
 
 get_value(Key, {Kind, Context}) ->
 	Contexts = case application:get_env(elk, contexts) of

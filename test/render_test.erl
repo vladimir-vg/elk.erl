@@ -23,3 +23,14 @@ raw_var_test() ->
 	?assertEqual(
 		<<"hello">>,
 		elk:render(elk:compile("hello\n {{& var }}\n"))).
+
+func_var_test() ->
+	Fun = fun (Context) ->
+		Value = elk:get_value(<<"value">>, Context),
+		["(", Value, ")"]
+	end,
+	Context = {proplist, [{<<"value">>, "World"}, {<<"parenthesed">>, Fun}]},
+	
+	?assertEqual(
+		<<"value is 'World' also as (World)">>,
+		elk:render(elk:compile("value is '{{& value }}' also as {{& parenthesed }}"), Context)).
