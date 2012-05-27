@@ -100,8 +100,63 @@ transform(comment, Node, _Index) ->
 	Postfix = ?iol2b(?get(postfix, Node)),
 	{comment, Prefix, Postfix};
 
-transform(template, Node, _Index) ->
-	block_transform(nl_transform(Node), [], []);
+transform(template, [], _Index) ->
+	[];
+transform(template, Nodes, _Index) ->
+	%% we add START marker and eof to properly calculate standalone-ness for tags
+	WithStartAndEOF = add_start(add_eof(Nodes)),
+	Transformed = block_transform(nl_transform(WithStartAndEOF), [], []),
+	remove_eof(remove_start(Transformed));
 
 transform(_Symbol, Node, _Index) ->
 	Node.
+
+add_start([]) ->
+	[];
+add_start(Nodes) ->
+	case hd(Nodes) of
+		{comment, {<<>>, Prefix}, Postfix} ->
+			[{comment, {<<"START">>, Prefix}, Postfix} | tl(Nodes)];
+		{Kind, Key, {<<>>, Prefix}, Postfix} ->
+			[{Kind, Key, {<<"START">>, Prefix}, Postfix} | tl(Nodes)];
+		_ -> Nodes
+	end.
+
+add_eof([]) ->
+	[];
+add_eof(Nodes) ->
+	Last = lists:last(Nodes),
+	case Last of
+		{comment, Prefix, <<>>} ->
+			init(Nodes) ++ [{comment, Prefix, <<"EOF">>}];
+		{Kind, Key, Prefix, <<>>} ->
+			init(Nodes) ++ [{Kind, Key, Prefix, <<"EOF">>}];
+		_ ->
+			Nodes
+	end.
+
+remove_start([]) ->
+	[];
+remove_start(Nodes) ->
+	case hd(Nodes) of
+		{text, <<"START">>} -> tl(Nodes);
+		_                   -> Nodes
+	end.
+
+remove_eof([]) ->
+	[];
+remove_eof(Nodes) ->
+	case lists:last(Nodes) of
+		{text, <<"EOF">>} ->
+			init(Nodes);
+		{Kind, Key, {Standalone, Prefix, <<"EOF">>}} ->
+			init(Nodes) ++ [{Kind, Key, {Standalone, Prefix, <<>>}}];
+		{Kind, Key, [SWS, {Standalone, Prefix, <<"EOF">>}], SubTree} ->
+			Node = {Kind, Key, [SWS, {Standalone, Prefix, <<>>}], SubTree},
+			init(Nodes) ++ [Node];
+		_ -> Nodes
+	end.
+	
+%% helper for lists
+init(List) ->
+	lists:reverse(tl(lists:reverse(List))).

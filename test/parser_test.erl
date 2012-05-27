@@ -12,7 +12,7 @@ basic_test() ->
 
 comment_test() ->
 	?assertEqual(
-		[{text, <<" ">>}, {text, <<" \r\n">>}],
+		[],
 		elk_parser:parse(" {{! ololo! \r\n\n huh! %^&*() }} \r\n")).
 
 block_test() ->
