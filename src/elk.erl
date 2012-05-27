@@ -109,16 +109,12 @@ get(Key, State) ->
 get_value([], _Context) ->
 	undefined;
 get_value([Key | KeyChain], {Kind, Context}) ->
-	io:format("~nCHAIN:[~s | ~w]~n", [Key, KeyChain]),
-	%%io:format("~nKey:~w~nContext:~w~n", [Key, {Kind, Context}]),
 	case {get_value(Key, {Kind, Context}), KeyChain} of
 		{undefined, _} -> undefined;
 		{Value, []} -> Value;
 		{Value, Chain} -> get_value(Chain, Value)
 	end;
 get_value(Key, {Kind, Context}) ->
-	io:format("~nKEY:~w~n", [Key]),
-	%%io:format("~nKey:~w~nContext:~w~n", [Key, {Kind, Context}]),
 	Contexts = case application:get_env(elk, contexts) of
 		undefined -> [{proplist, elk_proplist_context}];
 		Value -> Value
