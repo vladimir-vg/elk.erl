@@ -1,3 +1,4 @@
+
 template <- (tag / text)*;
 
 tag <-
@@ -15,13 +16,22 @@ tag <-
 text <- (!tag .)+;
 
 var <-
-    prefix:WS* "{{"  WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{"  WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
 
 var_raw1 <-
-    prefix:WS* "{{{" WS* key:id WS* "}}}" postfix:(WS* NL)?;
+    prefix:WS* "{{{" WS* key:dotted_id WS* "}}}" postfix:(WS* NL)?;
 
 var_raw2 <-
-    prefix:WS* "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{&" WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
+
+block_start <-
+    prefix:WS* "{{#" WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
+
+inverse_start <-
+    prefix:WS* "{{^" WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
+
+block_end <-
+    prefix:WS* "{{/" WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
 
 partial <-
     prefix:WS* "{{>" WS* key:id WS* "}}" postfix:(WS* NL)?;
@@ -29,14 +39,8 @@ partial <-
 comment <-
     prefix:WS* "{{!" (!"}}" .)* "}}" postfix:(WS* NL)?;
 
-block_start <-
-    prefix:WS* "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;
-
-inverse_start <-
-    prefix:WS* "{{^" WS* key:id WS* "}}" postfix:(WS* NL)?;
-
-block_end <-
-    prefix:WS* "{{/" WS* key:id WS* "}}" postfix:(WS* NL)?;
+dotted_id <-
+    first_id:[^\s{}\.]+ ("." id:[^\s{}\.]+)*;
 
 id <- [^\s{}]+;
 WS <- [\t ];

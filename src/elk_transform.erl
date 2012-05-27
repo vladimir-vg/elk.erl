@@ -7,7 +7,10 @@
 -define(get(K, O), proplists:get_value(K, O)).
 
 prefix_key_postfix(Kind, Node) ->
-	Key = ?iol2b(?get(key, Node)),
+	Key = case ?get(key, Node) of
+		{dotted, Keys} -> Keys;
+		Value -> ?iol2b(Value)
+	end,
 	Prefix = ?iol2b(?get(prefix, Node)),
 	Postfix = ?iol2b(?get(postfix, Node)),
 	{Kind, Key, Prefix, Postfix}.
@@ -82,10 +85,16 @@ transform(tag, Node, _Index) ->
 		_ ->
 			Prefix = element(3, Tag),
 			setelement(3, Tag, {Nl, Prefix})
-		
 	end;
 	
 transform(text, Node, _Index) -> {text, ?iol2b(Node)};
+
+transform(dotted_id, Node, _Index) ->
+	First = ?iol2b(?get(first_id, Node)),
+	Rest = lists:map(fun ([<<".">>, {id, Key}]) ->
+		?iol2b(Key)
+	end, hd(tl(Node))),
+	{dotted, [First | Rest]};
 
 transform(var,           Node, _Index) -> prefix_key_postfix(var,           Node);
 transform(var_raw1,      Node, _Index) -> prefix_key_postfix(raw_var,       Node);
