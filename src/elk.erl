@@ -125,6 +125,10 @@ get_from_contexts(_Key, []) ->
 stringify(true, _) -> "true";
 stringify(false, _) -> "";
 stringify(undefined, _) -> "";
+stringify(Value, _) when is_integer(Value) ->
+	integer_to_list(Value);
+stringify(Value, _) when is_float(Value) ->
+	elk_mochinum:digits(Value);
 stringify(Value, Escaped) when is_binary(Value); is_list(Value) ->
 	case Escaped of
 		true -> escape(binary_to_list(iolist_to_binary(Value)));
