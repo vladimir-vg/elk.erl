@@ -3,7 +3,7 @@
 
 -export([compile/1, get_value/2, render/1, render/2, render/3]).
 
--define(is_falsy(V), ((V =:= undefined) or (V =:= false))).
+-define(is_falsy(V), ((V =:= undefined) or (V =:= false) or (V =:= []))).
 -record(state, {top, contexts, partials}).
 
 compile(Source) ->
@@ -103,17 +103,24 @@ render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
 render_iolist([{inverse, Key, WS, SubTree} | Tree], State, Acc) ->
 	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
 	Value = get(Key, State),
+	EWS = [EPostfix, EPrefix],
+	SWS = [SPostfix, SPrefix],
 	case ?is_falsy(Value) of
 		false ->
 			case {SStandalone, EStandalone} of
 				{true, true} -> render_iolist(Tree, State, Acc);
 				{true, false} -> render_iolist(Tree, State, [EPostfix | Acc]);
 				{false, true} -> render_iolist(Tree, State, [SPrefix | Acc]);
-				{false, false} -> render_iolist(Tree, State, [SPrefix, EPostfix | Acc])
+				{false, false} -> render_iolist(Tree, State, [EPostfix, SPrefix | Acc])
 			end;
 		true ->
 			SubText = render_iolist(SubTree, State, []),
-			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
+			NewAcc = case {SStandalone, EStandalone} of
+				{true, true} -> [SubText | Acc];
+				{true, false} -> EWS ++ [SubText | Acc];
+				{false, true} -> [SubText] ++ SWS ++ Acc;
+				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
+			end,
 			render_iolist(Tree, State, NewAcc)
 	end;
 render_iolist([{partial, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
@@ -171,6 +178,7 @@ get_from_contexts(_Key, []) ->
 stringify(true, _) -> "true";
 stringify(false, _) -> "";
 stringify(undefined, _) -> "";
+stringify([], _) -> "";
 stringify(Value, _) when is_integer(Value) ->
 	integer_to_list(Value);
 stringify(Value, _) when is_float(Value) ->
