@@ -53,25 +53,31 @@ block_transform([], [], Acc) ->
 
 %% this transformation extracts whitespace prefixes and postfixes, or
 %% keeps it if they're standalone
-nl_transform([{text, Text} | Nodes]) ->
-	[{text, Text} | nl_transform(Nodes)];
-nl_transform([{comment, {Nl, Prefix}, Postfix} | Nodes]) when is_binary(Nl) ->
-	if
-		(Nl =/= <<>>) and (Postfix =/= <<>>) ->
-			[{text, Nl} | nl_transform(Nodes)];
+nl_transform([{text, Text} | Nodes], _) ->
+	[{text, Text} | nl_transform(Nodes, <<>>)];
+nl_transform([{comment, {Nl, Prefix}, Postfix} | Nodes], PrevPostfix) when is_binary(Nl) ->
+	Standalone = ((Nl =/= <<>>) or (PrevPostfix =/= <<>>)) and (Postfix =/= <<>>),
+	case Standalone of
 		true ->
-			[{text, Nl}, {text, Prefix}, {text, Postfix} | nl_transform(Nodes)]
+			[{text, Nl} | nl_transform(Nodes, Postfix)];
+		false ->
+			[{text, Nl}, {text, Prefix}, {text, Postfix} | nl_transform(Nodes, Postfix)]
 	end;
-nl_transform([{Kind, Key, {Nl, Prefix}, Postfix} | Nodes]) when is_binary(Nl) ->
-	Standalone = (Nl =/= <<>>) and (Postfix =/= <<>>),
-	[{text, Nl}, {Kind, Key, {Standalone, Prefix, Postfix}} | nl_transform(Nodes)];
-nl_transform([{Kind, Key, [{{Nl1, SPrefix}, SPostfix}, {{Nl2, EPrefix}, EPostfix}], Tree} | Nodes]) ->
-	SStandalone = (Nl1 =/= <<>>) and (SPostfix =/= <<>>),
-	EStandalone = (Nl2 =/= <<>>) and (EPostfix =/= <<>>),
+nl_transform([{Kind, Key, {Nl, Prefix}, Postfix} | Nodes], PrevPostfix) when is_binary(Nl) ->
+	Standalone = ((Nl =/= <<>>) or (PrevPostfix =/= <<>>)) and (Postfix =/= <<>>),
+	[{text, Nl}, {Kind, Key, {Standalone, Prefix, Postfix}} | nl_transform(Nodes, Postfix)];
+nl_transform([{Kind, Key, WS, Tree} | Nodes], PrevPostfix) ->
+	[{{Nl1, SPrefix}, SPostfix}, {{Nl2, EPrefix}, EPostfix}] = WS,
+	EPrevPostfix = case lists:last(Tree) of
+		{_Kind, _Key, {_Nl, _Prefix}, P} -> P;
+		{_Kind, _Key, [_SWS, {_EPrefix, P}], _Tree} -> P
+	end,
+	SStandalone = ((Nl1 =/= <<>>) or (PrevPostfix =/= <<>>)) and (SPostfix =/= <<>>),
+	EStandalone = ((Nl2 =/= <<>>) or (EPrevPostfix =/= <<>>)) and (EPostfix =/= <<>>),
 	NewTree = Tree ++ [{text, Nl2}],
 	NewNode = {Kind, Key, [{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}], NewTree},
-	[{text, Nl1}, NewNode | nl_transform(Nodes)];
-nl_transform([]) ->
+	[{text, Nl1}, NewNode | nl_transform(Nodes, EPostfix)];
+nl_transform([], _PrevPrefix) ->
 	[].
 	
 transform(tag, Node, _Index) ->
@@ -114,7 +120,7 @@ transform(template, [], _Index) ->
 transform(template, Nodes, _Index) ->
 	%% we add START marker and eof to properly calculate standalone-ness for tags
 	WithStartAndEOF = add_start(add_eof(Nodes)),
-	Transformed = block_transform(nl_transform(WithStartAndEOF), [], []),
+	Transformed = block_transform(nl_transform(WithStartAndEOF, <<>>), [], []),
 	remove_eof(remove_start(Transformed));
 
 transform(_Symbol, Node, _Index) ->

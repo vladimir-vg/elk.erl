@@ -44,17 +44,29 @@ render_iolist([{var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
 render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
 	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
 	Value = get(Key, State),
+	SWS = [SPostfix, SPrefix],
+	EWS = [EPostfix, EPrefix],
 	case {?is_falsy(Value), Value} of
 		%% TODO: check is Kind from contexts list.
 		%% What if user pass tuple just to use it as boolean?
 		{false, {Kind, Context}} ->
 			NewContexts = [{Kind, Context} | State#state.contexts],
 			SubText = render_iolist(SubTree, State#state{contexts=NewContexts}, []),
-			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
+			NewAcc = case {SStandalone, EStandalone} of
+				{true, true} -> [SubText | Acc];
+				{true, false} -> EWS ++ [SubText | Acc];
+				{false, true} -> [SubText] ++ SWS ++ Acc;
+				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
+			end,
 			render_iolist(Tree, State, NewAcc);
 		{false, Value} ->
 			SubText = render_iolist(SubTree, State, []),
-			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
+			NewAcc = case {SStandalone, EStandalone} of
+				{true, true} -> [SubText | Acc];
+				{true, false} -> EWS ++ [SubText | Acc];
+				{false, true} -> [SubText] ++ SWS ++ Acc;
+				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
+			end,
 			render_iolist(Tree, State, NewAcc);
 		{true, _} ->
 			case {SStandalone, EStandalone} of
