@@ -39,6 +39,8 @@ block_transform(
 	Node = {inverse, Key, [SWS, EWS], SubTemplate},
 	{Node, Nodes, Expected};
 
+block_transform([{text, <<>>} | Nodes], Expected, Acc) ->
+	block_transform(Nodes, Expected, Acc);
 block_transform([Node | Nodes], [], []) ->
 	[Node | block_transform(Nodes, [], [])];
 block_transform([Node | Nodes], Expected, Acc) ->
