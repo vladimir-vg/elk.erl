@@ -8,3 +8,7 @@
 comments_test_() ->
 	Tests = test_helpers:read_spec("../spec/specs/comments.json"),
 	lists:map(fun test_helpers:construct_test/1, Tests).
+
+interpolation_test_() ->
+	Tests = test_helpers:read_spec("../spec/specs/interpolation.json"),
+	lists:map(fun test_helpers:construct_test/1, Tests).
