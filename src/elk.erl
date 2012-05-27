@@ -31,6 +31,17 @@ render_tag(Value, {Standalone, Prefix, Postfix}, Escaped) ->
 			[]
 	end.
 
+
+render_iolist([{self, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
+	Value = case State#state.contexts of
+		[H | _] -> H;
+		_       -> undefined
+	end,
+	case {?is_falsy(Value), Standalone} of
+		{true, true} -> render_iolist(Tree, State, Acc);
+		{true, false} -> render_iolist(Tree, State, [Postfix, Prefix | Acc]);
+		{false, _} -> render_iolist(Tree, State, [Postfix, stringify(Value, true), Prefix | Acc])
+	end;
 render_iolist([{text, Text} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [Text | Acc]);
 render_iolist([{raw_var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
@@ -72,7 +83,8 @@ render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
 			end,
 			render_iolist(Tree, State, NewAcc);
 		{false, Value} ->
-			SubText = render_iolist(SubTree, State, []),
+			NewContexts = [Value | State#state.contexts],
+			SubText = render_iolist(SubTree, State#state{contexts=NewContexts}, []),
 			NewAcc = case {SStandalone, EStandalone} of
 				{true, true} -> [SubText | Acc];
 				{true, false} -> EWS ++ [SubText | Acc];
@@ -145,7 +157,7 @@ get_value(Key, {Kind, Context}) ->
 	end,
 	Module = proplists:get_value(Kind, Contexts),
 	Module:get(Key, Context);
-get_value(Key, List) when is_list(List) ->
+get_value(_Key, _Any) ->
 	undefined.
 
 get_from_contexts(Key, [Context | ContextsList]) ->

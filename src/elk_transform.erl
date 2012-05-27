@@ -42,6 +42,8 @@ block_transform(
 	Node = {inverse, Key, [SWS, EWS], SubTemplate},
 	{Node, Nodes, Expected};
 
+block_transform([{self, _, WS} | Nodes], Expected, Acc) ->
+	block_transform(Nodes, Expected, [{self, WS} | Acc]);
 block_transform([{text, <<>>} | Nodes], Expected, Acc) ->
 	block_transform(Nodes, Expected, Acc);
 block_transform([Node | Nodes], [], []) ->
@@ -102,6 +104,7 @@ transform(dotted_id, Node, _Index) ->
 	end, hd(tl(Node))),
 	{dotted, [First | Rest]};
 
+transform(self,          Node, _Index) -> prefix_key_postfix(self,          Node);
 transform(var,           Node, _Index) -> prefix_key_postfix(var,           Node);
 transform(var_raw1,      Node, _Index) -> prefix_key_postfix(raw_var,       Node);
 transform(var_raw2,      Node, _Index) -> prefix_key_postfix(raw_var,       Node);

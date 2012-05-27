@@ -4,6 +4,7 @@ template <- (tag / text)*;
 tag <-
     nl:NL?
     tag:(
+        self /
         block_start /
         inverse_start /
         block_end /
@@ -14,6 +15,9 @@ tag <-
         var);
 
 text <- (!tag .)+;
+
+self <-
+    prefix:WS* key:"{{.}}" postfix:(WS* NL)?;
 
 var <-
     prefix:WS* "{{"  WS* key:dotted_id WS* "}}" postfix:(WS* NL)?;
