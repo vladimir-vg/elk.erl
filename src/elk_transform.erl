@@ -12,31 +12,31 @@ prefix_key_postfix(Kind, Node) ->
 	Postfix = ?iol2b(?get(postfix, Node)),
 	{Kind, Key, Prefix, Postfix}.
 
-block_transform([{block_start, Key, Prefix, Postfix} | Nodes], Expected, Acc) ->
+block_transform([{block_start, Key, WS} | Nodes], Expected, Acc) ->
 	{Node, NewNodes, NewExpected} =
-		block_transform(Nodes, [{block_start, Key, Prefix, Postfix} | Expected], []),
+		block_transform(Nodes, [{block_start, Key, WS} | Expected], []),
 	block_transform(NewNodes, NewExpected, [Node | Acc]);
-block_transform([{inverse_start, Key, Prefix, Postfix} | Nodes], Expected, Acc) ->
+block_transform([{inverse_start, Key, WS} | Nodes], Expected, Acc) ->
 	{Node, NewNodes, NewExpected} =
-		block_transform(Nodes, [{inverse_start, Key, Prefix, Postfix} | Expected], []),
+		block_transform(Nodes, [{inverse_start, Key, WS} | Expected], []),
 	block_transform(NewNodes, NewExpected, [Node | Acc]);
 
 block_transform(
-	[{block_end, Key, EndPrefix, EndPostfix} | Nodes],
-	[{block_start, Key, StartPrefix, StartPostfix} | Expected],
+	[{block_end, Key, EWS} | Nodes],
+	[{block_start, Key, SWS} | Expected],
 	Acc
 ) ->
 	SubTemplate = block_transform(lists:reverse(Acc), [], []),
-	Node = {block, Key, [{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}], SubTemplate},
+	Node = {block, Key, [SWS, EWS], SubTemplate},
 	{Node, Nodes, Expected};
 
 block_transform(
-	[{block_end, Key, EndPrefix, EndPostfix} | Nodes],
-	[{inverse_start, Key, StartPrefix, StartPostfix} | Expected],
+	[{block_end, Key, EWS} | Nodes],
+	[{inverse_start, Key, SWS} | Expected],
 	Acc
 ) ->
 	SubTemplate = block_transform(lists:reverse(Acc), [], []),
-	Node = {inverse, Key, [{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}], SubTemplate},
+	Node = {inverse, Key, [SWS, EWS], SubTemplate},
 	{Node, Nodes, Expected};
 
 block_transform([Node | Nodes], [], []) ->
@@ -46,6 +46,43 @@ block_transform([Node | Nodes], Expected, Acc) ->
 block_transform([], [], Acc) ->
 	lists:reverse(Acc).
 
+%% this transformation extracts whitespace prefixes and postfixes, or
+%% keeps it if they're standalone
+nl_transform([{text, Text} | Nodes]) ->
+	[{text, Text} | nl_transform(Nodes)];
+nl_transform([{comment, {Nl, Prefix}, Postfix} | Nodes]) when is_binary(Nl) ->
+	if
+		(Nl =/= <<>>) and (Postfix =/= <<>>) ->
+			[{text, Nl} | nl_transform(Nodes)];
+		true ->
+			[{text, Nl}, {text, Prefix}, {text, Postfix} | nl_transform(Nodes)]
+	end;
+nl_transform([{Kind, Key, {Nl, Prefix}, Postfix} | Nodes]) when is_binary(Nl) ->
+	Standalone = (Nl =/= <<>>) and (Postfix =/= <<>>),
+	[{text, Nl}, {Kind, Key, {Standalone, Prefix, Postfix}} | nl_transform(Nodes)];
+nl_transform([{Kind, Key, [{{Nl1, SPrefix}, SPostfix}, {{Nl2, EPrefix}, EPostfix}], Tree} | Nodes]) ->
+	SStandalone = (Nl1 =/= <<>>) and (SPostfix =/= <<>>),
+	EStandalone = (Nl2 =/= <<>>) and (EPostfix =/= <<>>),
+	NewTree = Tree ++ [{text, Nl2}],
+	NewNode = {Kind, Key, [{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}], NewTree},
+	[{text, Nl1}, NewNode | nl_transform(Nodes)];
+nl_transform([]) ->
+	[].
+	
+transform(tag, Node, _Index) ->
+	Nl = ?iol2b(?get(nl, Node)),
+	Tag = ?get(tag, Node),
+	Kind = element(1, Tag),
+	case Kind of
+		comment ->
+			Prefix = element(2, Tag),
+			setelement(2, Tag, {Nl, Prefix});
+		_ ->
+			Prefix = element(3, Tag),
+			setelement(3, Tag, {Nl, Prefix})
+		
+	end;
+	
 transform(text, Node, _Index) -> {text, ?iol2b(Node)};
 
 transform(var,           Node, _Index) -> prefix_key_postfix(var,           Node);
@@ -62,7 +99,7 @@ transform(comment, Node, _Index) ->
 	{comment, Prefix, Postfix};
 
 transform(template, Node, _Index) ->
-	block_transform(Node, [], []);
+	block_transform(nl_transform(Node), [], []);
 
 transform(_Symbol, Node, _Index) ->
 	Node.

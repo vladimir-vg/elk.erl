@@ -21,81 +21,76 @@ render({elk_template, Tree}, Context, Partials) ->
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
-is_standalone(Prefix, Postfix) ->
-	not ((Prefix =:= <<>>) or (Postfix =:= <<>>)).
-
-%% this function just checks standalone-ness and inserts (or not)
-%% postfix and prefix whitespace
-render_tag(Value, Prefix, Postfix, Acc, Escaped) ->
-	case {is_standalone(Prefix, Postfix), ?is_falsy(Value)} of
-		{true,  true}  -> Acc;
-		{false, true}  -> [Postfix, Prefix | Acc];
-		{_,     false} -> [Postfix, stringify(Value, Escaped), Prefix | Acc]
+render_tag(Value, {Standalone, Prefix, Postfix}, Escaped) ->
+	case {?is_falsy(Value), Standalone} of
+		{false, _} ->
+			[Postfix, stringify(Value, Escaped), Prefix];
+		{true, false} ->
+			[Postfix, Prefix];
+		{true, true} ->
+			[]
 	end.
 
 render_iolist([{text, Text} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [Text | Acc]);
-render_iolist([{raw_var, Key, Prefix, Postfix} | Tree], State, Acc) ->
+render_iolist([{raw_var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
 	Value = get(Key, State),
-	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc, false));
-render_iolist([{var, Key, Prefix, Postfix} | Tree], State, Acc) ->
+	Income = render_tag(Value, {Standalone, Prefix, Postfix}, false),
+	render_iolist(Tree, State, Income ++ Acc);
+render_iolist([{var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
 	Value = get(Key, State),
-	render_iolist(Tree, State, render_tag(Value, Prefix, Postfix, Acc, true));
+	Income = render_tag(Value, {Standalone, Prefix, Postfix}, true),
+	render_iolist(Tree, State, Income ++ Acc);
 render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
-	[{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}] = WS,
+	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
 	Value = get(Key, State),
-	case {Value, ?is_falsy(Value)} of
+	case {?is_falsy(Value), Value} of
 		%% TODO: check is Kind from contexts list.
 		%% What if user pass tuple just to use it as boolean?
-		{{Kind, Context}, false} ->
-			Contexts = [ {Kind, Context} | State#state.contexts ],
-			SubText = render_iolist(SubTree, State#state{contexts=Contexts}, []),
-			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
+		{false, {Kind, Context}} ->
+			NewContexts = [{Kind, Context} | State#state.contexts],
+			SubText = render_iolist(SubTree, State#state{contexts=NewContexts}, []),
+			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
 			render_iolist(Tree, State, NewAcc);
-		{_, true} ->
-			case {is_standalone(StartPrefix, StartPostfix), is_standalone(EndPrefix, EndPostfix)} of
-				{true, true} -> render_iolist(Tree, State, Acc);
-				{true, false} -> render_iolist(Tree, State, [EndPostfix | Acc]);
-				{false, true} -> render_iolist(Tree, State, [StartPrefix | Acc]);
-				{false, false} -> render_iolist(Tree, State, [StartPrefix, EndPrefix | Acc])
-			end;
-		{Value, false} ->
+		{false, Value} ->
 			SubText = render_iolist(SubTree, State, []),
-			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
-			render_iolist(Tree, State, NewAcc)
+			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
+			render_iolist(Tree, State, NewAcc);
+		{true, _} ->
+			case {SStandalone, EStandalone} of
+				{true, true} -> render_iolist(Tree, State, Acc);
+				{true, false} -> render_iolist(Tree, State, [EPostfix | Acc]);
+				{false, true} -> render_iolist(Tree, State, [SPrefix | Acc]);
+				{false, false} -> render_iolist(Tree, State, [EPostfix, SPrefix | Acc])
+			end
 	end;
 render_iolist([{inverse, Key, WS, SubTree} | Tree], State, Acc) ->
-	[{StartPrefix, StartPostfix}, {EndPrefix, EndPostfix}] = WS,
+	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
 	Value = get(Key, State),
 	case ?is_falsy(Value) of
 		false ->
-			case {is_standalone(StartPrefix, StartPostfix), is_standalone(EndPrefix, EndPostfix)} of
+			case {SStandalone, EStandalone} of
 				{true, true} -> render_iolist(Tree, State, Acc);
-				{true, false} -> render_iolist(Tree, State, [EndPostfix | Acc]);
-				{false, true} -> render_iolist(Tree, State, [StartPrefix | Acc]);
-				{false, false} -> render_iolist(Tree, State, [StartPrefix, EndPrefix | Acc])
+				{true, false} -> render_iolist(Tree, State, [EPostfix | Acc]);
+				{false, true} -> render_iolist(Tree, State, [SPrefix | Acc]);
+				{false, false} -> render_iolist(Tree, State, [SPrefix, EPostfix | Acc])
 			end;
 		true ->
 			SubText = render_iolist(SubTree, State, []),
-			NewAcc = [EndPostfix, EndPrefix, SubText, StartPostfix, StartPrefix | Acc],
+			NewAcc = [EPostfix, EPrefix, SubText, SPostfix, SPrefix | Acc],
 			render_iolist(Tree, State, NewAcc)
 	end;
-render_iolist([{partial, Key, Prefix, Postfix} | Tree], State, Acc) ->
+render_iolist([{partial, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
 	Template = get_value(Key, State#state.partials),
 	case Template of
 		{elk_template, SubTree} ->
 			IOList = render_iolist(SubTree, State, []),
-			render_iolist(Tree, State, [Prefix, lists:reverse(IOList), Postfix | Acc]);
+			render_iolist(Tree, State, [Postfix, lists:reverse(IOList), Prefix | Acc]);
 		_ ->
-			case is_standalone(Prefix, Postfix) of
+			case Standalone of
 				true -> render_iolist(Tree, State, Acc);
-				false -> render_iolist(Tree, State, [Prefix, Postfix | Acc])
+				false -> render_iolist(Tree, State, [Postfix, Prefix | Acc])
 			end
-	end;
-render_iolist([{comment, Prefix, Postfix} | Tree], State, Acc) ->
-	case is_standalone(Prefix, Postfix) of
-		true -> render_iolist(Tree, State, Acc);
-		false -> render_iolist(Tree, State, [Prefix, Postfix | Acc])
 	end;
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).

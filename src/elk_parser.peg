@@ -1,40 +1,42 @@
 template <- (tag / text)*;
 
 tag <-
-    block_start /
-    inverse_start /
-    block_end /
-    var_raw1 /
-    var_raw2 /
-    partial /
-    comment /
-    var;
+    nl:NL?
+    tag:(
+        block_start /
+        inverse_start /
+        block_end /
+        var_raw1 /
+        var_raw2 /
+        partial /
+        comment /
+        var);
 
 text <- (!tag .)+;
 
 var <-
-    prefix:(NL WS*)? "{{"  WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{"  WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 var_raw1 <-
-    prefix:(NL WS*)? "{{{" WS* key:id WS* "}}}" postfix:(WS* NL)?;
+    prefix:WS* "{{{" WS* key:id WS* "}}}" postfix:(WS* NL)?;
 
 var_raw2 <-
-    prefix:(NL WS*)? "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{&" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 partial <-
-    prefix:(NL WS*)? "{{>" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{>" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 comment <-
-    prefix:(NL WS*)? "{{!" (!"}}" .)* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{!" (!"}}" .)* "}}" postfix:(WS* NL)?;
 
 block_start <-
-    prefix:(NL WS*)? "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{#" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 inverse_start <-
-    prefix:(NL WS*)? "{{^" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{^" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 block_end <-
-    prefix:(NL WS*)? "{{/" WS* key:id WS* "}}" postfix:(WS* NL)?;
+    prefix:WS* "{{/" WS* key:id WS* "}}" postfix:(WS* NL)?;
 
 id <- [^\s{}]+;
 WS <- [\t ];

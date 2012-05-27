@@ -21,7 +21,7 @@ raw_var_test() ->
 		elk:render(elk:compile("hello {{& var }}"))),
 	
 	?assertEqual(
-		<<"hello">>,
+		<<"hello\n">>,
 		elk:render(elk:compile("hello\n {{& var }}\n"))).
 
 escaped_var_test() ->
