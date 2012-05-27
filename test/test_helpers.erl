@@ -16,7 +16,10 @@ make_contexts_nested({List}) when is_list(List) ->
 		{Key, make_contexts_nested(Value)}
 	end, List),
 	{proplist, NewList};
-make_contexts_nested(Value) -> Value.
+make_contexts_nested(List) when is_list(List) ->
+	lists:map(fun make_contexts_nested/1, List);
+make_contexts_nested(Value) ->
+	Value.
 
 construct_test({proplist, Args}) ->
 	Name = proplists:get_value(<<"name">>, Args),

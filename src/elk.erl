@@ -59,6 +59,18 @@ render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
 				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
 			end,
 			render_iolist(Tree, State, NewAcc);
+		{false, List} when is_list(List) ->
+			SubTexts = lists:map(fun (V) ->
+				NewContexts = [V | State#state.contexts],
+				render_iolist(SubTree, State#state{contexts=NewContexts}, [])
+			end, List),
+			NewAcc = case {SStandalone, EStandalone} of
+				{true, true} -> [SubTexts | Acc];
+				{true, false} -> EWS ++ [SubTexts | Acc];
+				{false, true} -> [SubTexts] ++ SWS ++ Acc;
+				{false, false} -> EWS ++ [SubTexts] ++ SWS ++ Acc
+			end,
+			render_iolist(Tree, State, NewAcc);
 		{false, Value} ->
 			SubText = render_iolist(SubTree, State, []),
 			NewAcc = case {SStandalone, EStandalone} of
@@ -132,7 +144,9 @@ get_value(Key, {Kind, Context}) ->
 		Value -> Value
 	end,
 	Module = proplists:get_value(Kind, Contexts),
-	Module:get(Key, Context).
+	Module:get(Key, Context);
+get_value(Key, List) when is_list(List) ->
+	undefined.
 
 get_from_contexts(Key, [Context | ContextsList]) ->
 	case get_value(Key, Context) of
