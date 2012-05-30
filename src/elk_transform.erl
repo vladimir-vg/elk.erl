@@ -32,7 +32,10 @@ transform(text, Node, _Index) ->
 		_  -> {text, Binary}
 	end;
 transform(nl, Node, _Index) ->
-	{nl, iolist_to_binary(Node)};
+	case iolist_to_binary(Node) of
+		<<"\r\n">> -> {nl, crlf};
+		<<"\n">> -> {nl, lf}
+	end;
 transform(dotted_id, Node, _Index) ->
 	First = iolist_to_binary(proplists:get_value(first_id, Node)),
 	Rest = lists:map(fun ([<<".">>, {id, Key}]) ->
@@ -47,9 +50,11 @@ transform('template', Nodes, _Index) ->
 		[] -> FirstLine;
 		[Lines] -> FirstLine ++ lists:flatten(Lines)
 	end,
-	[indent | second_transform(NewNodes, [], [])];
+	[indent | third_transformation(second_transform(NewNodes, [], []), [], [], [])];
 transform(_Kind, Node, _Index) ->
 	Node.
+
+
 
 %% this transformation add indent tokens and group nodes by lines
 second_transform([{nl, Text} | Nodes], [], Acc) ->
@@ -63,5 +68,57 @@ second_transform([], [], Acc) ->
 second_transform([], LineAcc, Acc) ->
 	lists:reverse([lists:reverse(LineAcc) | Acc]).
 
-third_transformation([indent | Nodes]) ->
-	[indent | third_transformation(Nodes)].
+
+
+third_transformation([indent | Nodes], LineAcc, Expected, Acc) ->
+	third_transformation(Nodes, LineAcc, Expected, [indent | Acc]);
+third_transformation([{nl, Text} | Nodes], LineAcc, Expected, Acc) ->
+	third_transformation(Nodes, LineAcc, Expected, [{nl, Text} | Acc]);
+
+%% no block tag found
+third_transformation([[] | Nodes], LineAcc, Expected, Acc) ->
+	third_transformation(Nodes, [], Expected, [lists:reverse(LineAcc) | Acc]);
+
+%% found block tag,
+%% take first tokens from line,
+%% push tag to expected-list
+%% recursively transform the rest until found enclosing tag
+third_transformation([[{block_start, Key} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
+	{NewLineAcc, NewLineNodes, NewNodes, NewExpected} =
+		third_transformation([LineNodes | Nodes], [], [{block_start, Key, LineAcc} | Expected], []),
+	third_transformation([NewLineNodes | NewNodes], NewLineAcc, NewExpected, Acc);
+
+third_transformation([[{inverse_start, Key} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
+	{NewLineAcc, NewLineNodes, NewNodes, NewExpected} =
+		third_transformation([LineNodes | Nodes], [], [{inverse_start, Key, LineAcc} | Expected], []),
+	third_transformation([NewLineNodes | NewNodes], NewLineAcc, NewExpected, Acc);
+
+%% found matched block tag,
+%% put tree acc into block tag,
+%% remove tag from expected-list
+third_transformation(
+	[[{block_end, Key} | LineNodes] | Nodes],
+	LineAcc,
+	[{block_start, Key, Prefix} | Expected],
+	Acc
+) ->
+	Node = {block, Key, lists:reverse(Acc), lists:reverse(LineAcc)},
+	NewLineAcc = [Node | Prefix],
+	{NewLineAcc, LineNodes, Nodes, Expected};
+
+third_transformation(
+	[[{block_end, Key} | LineNodes] | Nodes],
+	LineAcc,
+	[{inverse_start, Key, Prefix} | Expected],
+	Acc
+) ->
+	Node = {inverse, Key, lists:reverse(Acc), lists:reverse(LineAcc)},
+	NewLineAcc = [Node | Prefix],
+	{NewLineAcc, LineNodes, Nodes, Expected};
+
+%% another usual node, just skip it.
+third_transformation([[LNode | LNodes] | Nodes], LineAcc, Expected, Acc) ->
+	third_transformation([LNodes | Nodes], [LNode | LineAcc], Expected, Acc);
+
+third_transformation([], [], [], Acc) ->
+	lists:reverse(Acc).

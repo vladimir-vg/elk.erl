@@ -7,38 +7,43 @@
 
 basic_test() ->
 	?assertEqual(
-		[{text, <<"aaa">>}, {var, [<<"key">>], {false, <<>>, <<>>}}, {text, <<"bbb">>}],
+		[indent, [{text, <<"aaa">>}, {var, [<<"key">>]}, {text, <<"bbb">>}]],
 		elk_parser:parse("aaa{{key}}bbb")).
 
 comment_test() ->
 	?assertEqual(
-		[],
+		[indent, [{ws, <<" ">>}, comment, {ws, <<" ">>}], {nl, crlf}, indent],
 		elk_parser:parse(" {{! ololo! \r\n\n huh! %^&*() }} \r\n")).
 
 block_test() ->
 	?assertEqual(
-		[{block, [<<"key">>], [{false, <<>>, <<>>}, {false, <<" ">>, <<>>}], [{text, <<" text">>}]}],
-		elk_parser:parse("{{# key }} text {{/ key }}")).
+		[indent,
+			[{block, [<<"key">>],
+				[[{text, <<" text1 ">>}],{nl, lf}, indent],
+				[{text, <<" text2 ">>}]}]],
+		elk_parser:parse("{{# key }} text1 \n text2 {{/ key }}")).
 
 inverse_test() ->
 	?assertEqual(
-		[{inverse, [<<"key">>], [{false, <<>>, <<>>}, {false, <<" ">>, <<>>}], [{text, <<" text">>}]}],
+		[indent, [{inverse, [<<"key">>], [], [{text, <<" text ">>}]}]],
 		elk_parser:parse("{{^ key }} text {{/ key }}")).
 
 standalone_block_tag_test() ->
 	?assertEqual(
-		[
-			{text, <<"\r\n">>},
-			{inverse, [<<"key">>], [{true, <<" ">>, <<" \n">>}, {false, <<" ">>, <<" \n">>}],
-				[{text, <<" text">>}]}],
+		[indent, {nl, crlf}, indent,
+			[{ws, <<" ">>},
+			{inverse, [<<"key">>],
+				[[{ws, <<" ">>}], {nl, lf}, indent],
+				[{text, <<" text ">>}]},
+			{ws, <<" ">>}],
+		{nl, lf}, indent],
 		elk_parser:parse("\r\n {{^ key }} \n text {{/ key }} \n")).
 
 nested_blocks_test() ->
 	?assertEqual(
-		[{text, <<" 1">>},
-		{block, [<<"first">>], [{false, <<" ">>, <<>>}, {false, <<" ">>, <<>>}], [
-			{text, <<" 2">>},
-			{inverse, [<<"second">>], [{false, <<" ">>, <<>>}, {false, <<" ">>, <<>>}], [{text, <<" 3">>}]},
-			{text, <<" 4">>}]},
-		{text, <<" 5 ">>}],
+		[indent,
+			[{text, <<" 1 ">>},
+			{block, [<<"first">>], [],
+				[{text, <<" 2 ">>}, {inverse, [<<"second">>], [], [{text, <<" 3 ">>}]}, {text, <<" 4 ">>}]},
+			{text, <<" 5 ">>}]],
 		elk_parser:parse(" 1 {{#first}} 2 {{^second}} 3 {{/second}} 4 {{/first}} 5 ")).
