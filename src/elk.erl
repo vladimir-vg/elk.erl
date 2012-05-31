@@ -58,6 +58,10 @@ render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
 	Pref = render_iolist([EPrefix], State, []),
 	render_iolist([Line | Tree], State, [Pref, render_inverse(Key, State, SubTree) | Acc]);
 
+render_iolist([[{block, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Key, State, [[Line], SubTree, [EPrefix]]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+
 render_iolist([indent | Tree], State, Acc) ->
 	render_iolist(Tree, State, [State#state.indent | Acc]);
 render_iolist([[] | Tree], State, Acc) ->
@@ -114,6 +118,19 @@ render_inverse(Key, State, Tree) ->
 	case ?is_falsy(Value) of
 		true -> render_iolist(Tree, State, []);
 		false -> <<>>
+	end.
+
+%% this differs from render_inverse, it takes list trees.
+%% this was made to prevent several lookups for spostfix, subtree, and eprefix parts
+render_block_parts(Key, State, Trees) ->
+	Value = get(Key, State),
+	case ?is_falsy(Value) of
+		true -> <<>>;
+		false ->
+			NewContexts = [Value | State#state.contexts],
+			lists:map(fun (Tree) ->
+				render_iolist(Tree, State#state{contexts=NewContexts}, [])
+			end, Trees)
 	end.
 
 get(Key, State) ->
