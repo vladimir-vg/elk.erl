@@ -22,25 +22,25 @@ render({elk_template, Tree}, Context, Partials) ->
 	iolist_to_binary(IOList).
 
 %% standalone nodes
-render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}], {nl, Nl} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, Prefix, Postfix, Nl, State) | Acc]);
+render_iolist([{nl, Nl}, indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Nl, Prefix, Postfix, State) | Acc]);
 render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, Prefix, Postfix, <<>>, State) | Acc]);
-render_iolist([indent, [{ws, Prefix}, Node], {nl, Nl} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, Prefix, <<>>, Nl, State) | Acc]);
-render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, Prefix, <<>>, <<>>, State) | Acc]);
-render_iolist([indent, [Node, {ws, Postfix}], {nl, Nl} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, Postfix, Nl, State) | Acc]);
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, Postfix, State) | Acc]);
+render_iolist([{nl, Nl}, indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Nl, <<>>, Postfix, State) | Acc]);
 render_iolist([indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, Postfix, <<>>, State) | Acc]);
-render_iolist([indent, [Node], {nl, Nl} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Nl, State) | Acc]);
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Postfix, State) | Acc]);
+render_iolist([{nl, Nl}, indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Nl, Prefix, <<>>, State) | Acc]);
+render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, <<>>, State) | Acc]);
+render_iolist([{nl, Nl}, indent, [Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Nl, <<>>, <<>>, State) | Acc]);
 render_iolist([indent, [Node] | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, <<>>, State) | Acc]);
 
 render_iolist([{nl, Nl} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_nl(Nl) | Acc]);
+	render_iolist(Tree, State, [Nl | Acc]);
 render_iolist([[comment | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, Acc);
 render_iolist([[{text, Text} | Line] | Tree], State, Acc) ->
@@ -54,7 +54,9 @@ render_iolist([[{var, Key} | Line] | Tree], State, Acc) ->
 render_iolist([[{raw_var, Key} | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, [render_raw_var(Key, State) | Acc]);
 
-%render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+	Pref = render_iolist([EPrefix], State, []),
+	render_iolist([Line | Tree], State, [Pref, render_inverse(Key, State, SubTree) | Acc]);
 
 render_iolist([indent | Tree], State, Acc) ->
 	render_iolist(Tree, State, [State#state.indent | Acc]);
@@ -63,58 +65,40 @@ render_iolist([[] | Tree], State, Acc) ->
 render_iolist([], _State, Acc) ->
 	lists:reverse(Acc).
 
-render_standalone(comment, _Prefix, _Postfix, _Nl, _State) ->
+render_standalone(comment, _Nl, _Prefix, _Postfix, _State) ->
 	<<>>;
-render_standalone({text, Text}, Prefix, Postfix, Nl, _State) ->
-	[Prefix, Text, Postfix, render_nl(Nl)];
-render_standalone({var, Key}, Prefix, Postfix, Nl, State) ->
+render_standalone({text, Text}, Nl, Prefix, Postfix, _State) ->
+	[Nl, Prefix, Text, Postfix];
+render_standalone({var, Key}, Nl, Prefix, Postfix, State) ->
 	case render_var(Key, State) of
 		<<>> -> <<>>;
-		Text -> [Prefix, Text, Postfix, render_nl(Nl)]
+		Text -> [Nl, Prefix, Text, Postfix]
 	end;
-render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
+render_standalone({raw_var, Key}, Nl, Prefix, Postfix, State) ->
 	case render_raw_var(Key, State) of
 		<<>> -> <<>>;
-		Text -> [Prefix, Text, Postfix, render_nl(Nl)]
+		Text -> [Nl, Prefix, Text, Postfix]
 	end;
-render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
+render_standalone({inverse, Key, SubTree, EPrefix}, SNl, SPrefix, EPostfix, State) ->
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
-		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
+		{[[{ws, _}] | Tree], [{ws, _}]} ->
 			render_inverse(Key, State, Tree);
 		
-		{[[], {nl, _} | Tree], [{ws, _}]} ->
+		{[[] | Tree], [{ws, _}]} ->
 			render_inverse(Key, State, Tree);
 		
-		{[[{ws, _}], {nl, _} | Tree], []} ->
+		{[[{ws, _}] | Tree], []} ->
 			render_inverse(Key, State, Tree);
 		
-		{[[], {nl, _} | Tree], []} ->
+		{[[] | Tree], []} ->
 			render_inverse(Key, State, Tree);
-		
-		%% first is standalone, second is not
-		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
-			Pref = render_iolist([EPrefix], State, []),
-			[render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)];
-		
-		{[[], {nl, _} | Tree], EPrefix} ->
-			Pref = render_iolist([EPrefix], State, []),
-			[render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)];
-		
-		%% first is not standalone, second is.
-		{[SPostfix | Tree], [{ws, _}]} ->
-			Postf = render_iolist([SPostfix], State, []),
-			[SPrefix, Postf, render_inverse(Key, State, Tree)];
-		
-		{[SPostfix | Tree], []} ->
-			Postf = render_iolist([SPostfix], State, []),
-			[SPrefix, Postf, render_inverse(Key, State, Tree)];
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
 			Pref = render_iolist([EPrefix], State, []),
 			Postf = render_iolist([SPostfix], State, []),
-			[SPrefix, Postf, render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)]
+			[SNl, SPrefix, Postf, render_inverse(Key, State, Tree), Pref, EPostfix]
 	end.
 
 render_var(Key, State) ->
@@ -131,11 +115,6 @@ render_inverse(Key, State, Tree) ->
 		true -> render_iolist(Tree, State, []);
 		false -> <<>>
 	end.
-
-
-render_nl(<<>>) -> <<>>;
-render_nl(crlf) -> <<"\r\n">>;
-render_nl(lf) -> <<"\n">>.
 
 get(Key, State) ->
 	Contexts = State#state.contexts,
