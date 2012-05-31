@@ -55,8 +55,7 @@ render_iolist([[{raw_var, Key} | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, [render_raw_var(Key, State) | Acc]);
 
 render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
-	Pref = render_iolist([EPrefix], State, []),
-	render_iolist([Line | Tree], State, [Pref, render_inverse(Key, State, SubTree) | Acc]);
+	render_iolist([Line | Tree], State, [render_inverse_parts(Key, State, [[EPrefix], SubTree]) | Acc]);
 
 render_iolist([[{block, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
 	Result = render_block_parts(Key, State, [[Line], SubTree, [EPrefix]]),
@@ -87,22 +86,20 @@ render_standalone({inverse, Key, SubTree, EPrefix}, SNl, SPrefix, EPostfix, Stat
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
 		{[[{ws, _}] | Tree], [{ws, _}]} ->
-			render_inverse(Key, State, Tree);
+			render_inverse_parts(Key, State, [Tree]);
 		
 		{[[] | Tree], [{ws, _}]} ->
-			render_inverse(Key, State, Tree);
+			render_inverse_parts(Key, State, [Tree]);
 		
 		{[[{ws, _}] | Tree], []} ->
-			render_inverse(Key, State, Tree);
+			render_inverse_parts(Key, State, [Tree]);
 		
 		{[[] | Tree], []} ->
-			render_inverse(Key, State, Tree);
+			render_inverse_parts(Key, State, [Tree]);
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
-			Pref = render_iolist([EPrefix], State, []),
-			Postf = render_iolist([SPostfix], State, []),
-			[SNl, SPrefix, Postf, render_inverse(Key, State, Tree), Pref, EPostfix]
+			[SNl, render_inverse_parts(Key, State, [[SPrefix], [SPostfix], Tree, [EPrefix], [EPostfix]])]
 	end.
 
 render_var(Key, State) ->
@@ -113,11 +110,14 @@ render_raw_var(Key, State) ->
 	Value = get(Key, State),
 	stringify(Value, false).
 
-render_inverse(Key, State, Tree) ->
+render_inverse_parts(Key, State, Trees) ->
 	Value = get(Key, State),
 	case ?is_falsy(Value) of
-		true -> render_iolist(Tree, State, []);
-		false -> <<>>
+		false -> <<>>;
+		true ->
+			lists:map(fun (Tree) ->
+				render_iolist(Tree, State, [])
+			end, Trees)
 	end.
 
 %% this differs from render_inverse, it takes list trees.
