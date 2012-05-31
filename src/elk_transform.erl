@@ -32,10 +32,7 @@ transform(text, Node, _Index) ->
 		_  -> {text, Binary}
 	end;
 transform(nl, Node, _Index) ->
-	case iolist_to_binary(Node) of
-		<<"\r\n">> -> {nl, crlf};
-		<<"\n">> -> {nl, lf}
-	end;
+	{nl, iolist_to_binary(Node)};
 transform(dotted_id, Node, _Index) ->
 	First = iolist_to_binary(proplists:get_value(first_id, Node)),
 	Rest = lists:map(fun ([<<".">>, {id, Key}]) ->
