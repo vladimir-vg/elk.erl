@@ -4,7 +4,7 @@
 -export([compile/1, get_value/2, render/1, render/2, render/3]).
 
 -define(is_falsy(V), ((V =:= undefined) or (V =:= false) or (V =:= []))).
--record(state, {top, contexts, partials}).
+-record(state, {top, contexts, partials, indent}).
 
 compile(Source) ->
 	Tree = elk_parser:parse(Source),
@@ -17,126 +17,125 @@ render({elk_template, Tree}, Context) ->
 	render({elk_template, Tree}, Context, {proplist, []}).
 
 render({elk_template, Tree}, Context, Partials) ->
-	State = #state{contexts=[Context], top=Context, partials=Partials},
+	State = #state{contexts=[Context], top=Context, partials=Partials, indent=(<<>>)},
 	IOList = render_iolist(Tree, State, []),
 	iolist_to_binary(IOList).
 
-render_tag(Value, {Standalone, Prefix, Postfix}, Escaped) ->
-	case {?is_falsy(Value), Standalone} of
-		{false, _} ->
-			[Postfix, stringify(Value, Escaped), Prefix];
-		{true, false} ->
-			[Postfix, Prefix];
-		{true, true} ->
-			[]
+%% standalone nodes
+render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}], {nl, Nl} | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Prefix, Postfix, Nl, State) | Acc]);
+render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Prefix, Postfix, <<>>, State) | Acc]);
+render_iolist([indent, [{ws, Prefix}, Node], {nl, Nl} | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Prefix, <<>>, Nl, State) | Acc]);
+render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Prefix, <<>>, <<>>, State) | Acc]);
+render_iolist([indent, [Node, {ws, Postfix}], {nl, Nl} | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Postfix, Nl, State) | Acc]);
+render_iolist([indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Postfix, <<>>, State) | Acc]);
+render_iolist([indent, [Node], {nl, Nl} | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Nl, State) | Acc]);
+render_iolist([indent, [Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, <<>>, State) | Acc]);
+
+render_iolist([{nl, Nl} | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_nl(Nl) | Acc]);
+render_iolist([[comment | Line] | Tree], State, Acc) ->
+	render_iolist([Line | Tree], State, Acc);
+render_iolist([[{text, Text} | Line] | Tree], State, Acc) ->
+	render_iolist([Line | Tree], State, [Text | Acc]);
+render_iolist([[{ws, Text} | Line] | Tree], State, Acc) ->
+	render_iolist([Line | Tree], State, [Text | Acc]);
+	
+render_iolist([[{var, Key} | Line] | Tree], State, Acc) ->
+	render_iolist([Line | Tree], State, [render_var(Key, State) | Acc]);
+
+render_iolist([[{raw_var, Key} | Line] | Tree], State, Acc) ->
+	render_iolist([Line | Tree], State, [render_raw_var(Key, State) | Acc]);
+
+%render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+
+render_iolist([indent | Tree], State, Acc) ->
+	render_iolist(Tree, State, [State#state.indent | Acc]);
+render_iolist([[] | Tree], State, Acc) ->
+	render_iolist(Tree, State, Acc);
+render_iolist([], _State, Acc) ->
+	lists:reverse(Acc).
+
+render_standalone(comment, _Prefix, _Postfix, _Nl, _State) ->
+	<<>>;
+render_standalone({text, Text}, Prefix, Postfix, Nl, _State) ->
+	[Prefix, Text, Postfix, render_nl(Nl)];
+render_standalone({var, Key}, Prefix, Postfix, Nl, State) ->
+	case render_var(Key, State) of
+		<<>> -> <<>>;
+		Text -> [Prefix, Text, Postfix, render_nl(Nl)]
+	end;
+render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
+	case render_raw_var(Key, State) of
+		<<>> -> <<>>;
+		Text -> [Prefix, Text, Postfix, render_nl(Nl)]
+	end;
+render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
+	case {SubTree, EPrefix} of
+		%% first and second tags are standalone. Just ignore them
+		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
+			render_inverse(Key, State, Tree);
+		
+		{[[], {nl, _} | Tree], [{ws, _}]} ->
+			render_inverse(Key, State, Tree);
+		
+		{[[{ws, _}], {nl, _} | Tree], []} ->
+			render_inverse(Key, State, Tree);
+		
+		{[[], {nl, _} | Tree], []} ->
+			render_inverse(Key, State, Tree);
+		
+		%% first is standalone, second is not
+		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
+			Pref = render_iolist([EPrefix], State, []),
+			[render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)];
+		
+		{[[], {nl, _} | Tree], EPrefix} ->
+			Pref = render_iolist([EPrefix], State, []),
+			[render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)];
+		
+		%% first is not standalone, second is.
+		{[SPostfix | Tree], [{ws, _}]} ->
+			Postf = render_iolist([SPostfix], State, []),
+			[SPrefix, Postf, render_inverse(Key, State, Tree)];
+		
+		{[SPostfix | Tree], []} ->
+			Postf = render_iolist([SPostfix], State, []),
+			[SPrefix, Postf, render_inverse(Key, State, Tree)];
+		
+		%% both aren't standalone
+		{[SPostfix | Tree], EPrefix} ->
+			Pref = render_iolist([EPrefix], State, []),
+			Postf = render_iolist([SPostfix], State, []),
+			[SPrefix, Postf, render_inverse(Key, State, Tree), Pref, EPostfix, render_nl(ENl)]
+	end.
+
+render_var(Key, State) ->
+	Value = get(Key, State),
+	stringify(Value, true).
+
+render_raw_var(Key, State) ->
+	Value = get(Key, State),
+	stringify(Value, false).
+
+render_inverse(Key, State, Tree) ->
+	Value = get(Key, State),
+	case ?is_falsy(Value) of
+		true -> render_iolist(Tree, State, []);
+		false -> <<>>
 	end.
 
 
-render_iolist([{self, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
-	Value = case State#state.contexts of
-		[H | _] -> H;
-		_       -> undefined
-	end,
-	case {?is_falsy(Value), Standalone} of
-		{true, true} -> render_iolist(Tree, State, Acc);
-		{true, false} -> render_iolist(Tree, State, [Postfix, Prefix | Acc]);
-		{false, _} -> render_iolist(Tree, State, [Postfix, stringify(Value, true), Prefix | Acc])
-	end;
-render_iolist([{text, Text} | Tree], State, Acc) ->
-	render_iolist(Tree, State, [Text | Acc]);
-render_iolist([{raw_var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
-	Value = get(Key, State),
-	Income = render_tag(Value, {Standalone, Prefix, Postfix}, false),
-	render_iolist(Tree, State, Income ++ Acc);
-render_iolist([{var, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
-	Value = get(Key, State),
-	Income = render_tag(Value, {Standalone, Prefix, Postfix}, true),
-	render_iolist(Tree, State, Income ++ Acc);
-render_iolist([{block, Key, WS, SubTree} | Tree], State, Acc) ->
-	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
-	Value = get(Key, State),
-	SWS = [SPostfix, SPrefix],
-	EWS = [EPostfix, EPrefix],
-	case {?is_falsy(Value), Value} of
-		%% TODO: check is Kind from contexts list.
-		%% What if user pass tuple just to use it as boolean?
-		{false, {Kind, Context}} ->
-			NewContexts = [{Kind, Context} | State#state.contexts],
-			SubText = render_iolist(SubTree, State#state{contexts=NewContexts}, []),
-			NewAcc = case {SStandalone, EStandalone} of
-				{true, true} -> [SubText | Acc];
-				{true, false} -> EWS ++ [SubText | Acc];
-				{false, true} -> [SubText] ++ SWS ++ Acc;
-				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
-			end,
-			render_iolist(Tree, State, NewAcc);
-		{false, List} when is_list(List) ->
-			SubTexts = lists:map(fun (V) ->
-				NewContexts = [V | State#state.contexts],
-				render_iolist(SubTree, State#state{contexts=NewContexts}, [])
-			end, List),
-			NewAcc = case {SStandalone, EStandalone} of
-				{true, true} -> [SubTexts | Acc];
-				{true, false} -> EWS ++ [SubTexts | Acc];
-				{false, true} -> [SubTexts] ++ SWS ++ Acc;
-				{false, false} -> EWS ++ [SubTexts] ++ SWS ++ Acc
-			end,
-			render_iolist(Tree, State, NewAcc);
-		{false, Value} ->
-			NewContexts = [Value | State#state.contexts],
-			SubText = render_iolist(SubTree, State#state{contexts=NewContexts}, []),
-			NewAcc = case {SStandalone, EStandalone} of
-				{true, true} -> [SubText | Acc];
-				{true, false} -> EWS ++ [SubText | Acc];
-				{false, true} -> [SubText] ++ SWS ++ Acc;
-				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
-			end,
-			render_iolist(Tree, State, NewAcc);
-		{true, _} ->
-			case {SStandalone, EStandalone} of
-				{true, true} -> render_iolist(Tree, State, Acc);
-				{true, false} -> render_iolist(Tree, State, [EPostfix | Acc]);
-				{false, true} -> render_iolist(Tree, State, [SPrefix | Acc]);
-				{false, false} -> render_iolist(Tree, State, [EPostfix, SPrefix | Acc])
-			end
-	end;
-render_iolist([{inverse, Key, WS, SubTree} | Tree], State, Acc) ->
-	[{SStandalone, SPrefix, SPostfix}, {EStandalone, EPrefix, EPostfix}] = WS,
-	Value = get(Key, State),
-	EWS = [EPostfix, EPrefix],
-	SWS = [SPostfix, SPrefix],
-	case ?is_falsy(Value) of
-		false ->
-			case {SStandalone, EStandalone} of
-				{true, true} -> render_iolist(Tree, State, Acc);
-				{true, false} -> render_iolist(Tree, State, [EPostfix | Acc]);
-				{false, true} -> render_iolist(Tree, State, [SPrefix | Acc]);
-				{false, false} -> render_iolist(Tree, State, [EPostfix, SPrefix | Acc])
-			end;
-		true ->
-			SubText = render_iolist(SubTree, State, []),
-			NewAcc = case {SStandalone, EStandalone} of
-				{true, true} -> [SubText | Acc];
-				{true, false} -> EWS ++ [SubText | Acc];
-				{false, true} -> [SubText] ++ SWS ++ Acc;
-				{false, false} -> EWS ++ [SubText] ++ SWS ++ Acc
-			end,
-			render_iolist(Tree, State, NewAcc)
-	end;
-render_iolist([{partial, Key, {Standalone, Prefix, Postfix}} | Tree], State, Acc) ->
-	Template = get_value(Key, State#state.partials),
-	case Template of
-		{elk_template, SubTree} ->
-			IOList = render_iolist(SubTree, State, []),
-			render_iolist(Tree, State, [Postfix, lists:reverse(IOList), Prefix | Acc]);
-		_ ->
-			case Standalone of
-				true -> render_iolist(Tree, State, Acc);
-				false -> render_iolist(Tree, State, [Postfix, Prefix | Acc])
-			end
-	end;
-render_iolist([], _State, Acc) ->
-	lists:reverse(Acc).
+render_nl(<<>>) -> <<>>;
+render_nl(crlf) -> <<"\r\n">>;
+render_nl(lf) -> <<"\n">>.
 
 get(Key, State) ->
 	Contexts = State#state.contexts,
@@ -176,9 +175,9 @@ get_from_contexts(_Key, []) ->
 	undefined.
 
 stringify(true, _) -> "true";
-stringify(false, _) -> "";
-stringify(undefined, _) -> "";
-stringify([], _) -> "";
+stringify(false, _) -> <<>>;
+stringify(undefined, _) -> <<>>;
+stringify([], _) -> <<>>	;
 stringify(Value, _) when is_integer(Value) ->
 	integer_to_list(Value);
 stringify(Value, _) when is_float(Value) ->
