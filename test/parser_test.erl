@@ -12,14 +12,14 @@ basic_test() ->
 
 comment_test() ->
 	?assertEqual(
-		[indent, [{ws, <<" ">>}, comment, {ws, <<" ">>}], {nl, crlf}, indent],
+		[indent, [{ws, <<" ">>}, comment, {ws, <<" ">>}], {nl, <<"\r\n">>}, indent],
 		elk_parser:parse(" {{! ololo! \r\n\n huh! %^&*() }} \r\n")).
 
 block_test() ->
 	?assertEqual(
 		[indent,
 			[{block, [<<"key">>],
-				[[{text, <<" text1 ">>}],{nl, lf}, indent],
+				[[{text, <<" text1 ">>}],{nl, <<"\n">>}, indent],
 				[{text, <<" text2 ">>}]}]],
 		elk_parser:parse("{{# key }} text1 \n text2 {{/ key }}")).
 
@@ -30,13 +30,13 @@ inverse_test() ->
 
 standalone_block_tag_test() ->
 	?assertEqual(
-		[indent, {nl, crlf}, indent,
+		[indent, {nl, <<"\r\n">>}, indent,
 			[{ws, <<" ">>},
 			{inverse, [<<"key">>],
-				[[{ws, <<" ">>}], {nl, lf}, indent],
+				[[{ws, <<" ">>}], {nl, <<"\n">>}, indent],
 				[{text, <<" text ">>}]},
 			{ws, <<" ">>}],
-		{nl, lf}, indent],
+		{nl, <<"\n">>}, indent],
 		elk_parser:parse("\r\n {{^ key }} \n text {{/ key }} \n")).
 
 nested_blocks_test() ->
