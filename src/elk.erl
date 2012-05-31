@@ -24,18 +24,19 @@ render({elk_template, Tree}, Context, Partials) ->
 %% standalone nodes
 render_iolist([{nl, Nl}, indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, Nl, Prefix, Postfix, State) | Acc]);
-render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, Postfix, State) | Acc]);
-render_iolist([{nl, Nl}, indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, Nl, <<>>, Postfix, State) | Acc]);
-render_iolist([indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Postfix, State) | Acc]);
 render_iolist([{nl, Nl}, indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, Nl, Prefix, <<>>, State) | Acc]);
-render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
-	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, <<>>, State) | Acc]);
+render_iolist([{nl, Nl}, indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, Nl, <<>>, Postfix, State) | Acc]);
 render_iolist([{nl, Nl}, indent, [Node] | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, Nl, <<>>, <<>>, State) | Acc]);
+
+render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, Postfix, State) | Acc]);
+render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, Prefix, <<>>, State) | Acc]);
+render_iolist([indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
+	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Postfix, State) | Acc]);
 render_iolist([indent, [Node] | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, <<>>, State) | Acc]);
 
@@ -99,7 +100,32 @@ render_standalone({inverse, Key, SubTree, EPrefix}, SNl, SPrefix, EPostfix, Stat
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
-			[SNl, render_inverse_parts(Key, State, [[SPrefix], [SPostfix], Tree, [EPrefix], [EPostfix]])]
+			[SNl, SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix];
+		
+		{[], EPrefix} ->
+			[SNl, SPrefix, render_inverse_parts(Key, State, [[EPrefix]]), EPostfix]
+	end;
+render_standalone({block, Key, SubTree, EPrefix}, SNl, SPrefix, EPostfix, State) ->
+	case {SubTree, EPrefix} of
+		%% first and second tags are standalone. Just ignore them
+		{[[{ws, _}] | Tree], [{ws, _}]} ->
+			render_block_parts(Key, State, [Tree]);
+		
+		{[[] | Tree], [{ws, _}]} ->
+			render_block_parts(Key, State, [Tree]);
+		
+		{[[{ws, _}] | Tree], []} ->
+			render_block_parts(Key, State, [Tree]);
+		
+		{[[] | Tree], []} ->
+			render_block_parts(Key, State, [Tree]);
+		
+		%% both aren't standalone
+		{[SPostfix | Tree], EPrefix} ->
+			[SNl, SPrefix, render_block_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix];
+		
+		{[], EPrefix} ->
+			[SNl, SPrefix, render_block_parts(Key, State, [[EPrefix]]), EPostfix]
 	end.
 
 render_var(Key, State) ->
