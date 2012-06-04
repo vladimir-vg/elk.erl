@@ -59,7 +59,7 @@ render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, [render_inverse_parts(Key, State, [[EPrefix], SubTree]) | Acc]);
 
 render_iolist([[{block, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
-	Result = render_block_parts(Key, State, [[Line], SubTree, [EPrefix]]),
+	Result = render_block_parts(Key, State, [SubTree, [EPrefix]]),
 	render_iolist([Line | Tree], State, [Result | Acc]);
 
 render_iolist([indent | Tree], State, Acc) ->
