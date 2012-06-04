@@ -86,16 +86,16 @@ render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
 render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
-		{[[{ws, _}] | Tree], [{ws, _}]} ->
+		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
 			render_inverse_parts(Key, State, [Tree]);
 		
-		{[[] | Tree], [{ws, _}]} ->
+		{[[], {nl, _} | Tree], [{ws, _}]} ->
 			render_inverse_parts(Key, State, [Tree]);
 		
-		{[[{ws, _}] | Tree], []} ->
+		{[[{ws, _}], {nl, _} | Tree], []} ->
 			render_inverse_parts(Key, State, [Tree]);
 		
-		{[[] | Tree], []} ->
+		{[[], {nl, _} | Tree], []} ->
 			render_inverse_parts(Key, State, [Tree]);
 		
 		%% both aren't standalone
@@ -108,16 +108,16 @@ render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, Stat
 render_standalone({block, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
-		{[[{ws, _}] | Tree], [{ws, _}]} ->
+		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
 			render_block_parts(Key, State, [Tree]);
 		
-		{[[] | Tree], [{ws, _}]} ->
+		{[[], {nl, _} | Tree], [{ws, _}]} ->
 			render_block_parts(Key, State, [Tree]);
 		
-		{[[{ws, _}] | Tree], []} ->
+		{[[{ws, _}], {nl, _} | Tree], []} ->
 			render_block_parts(Key, State, [Tree]);
 		
-		{[[] | Tree], []} ->
+		{[[], {nl, _} | Tree], []} ->
 			render_block_parts(Key, State, [Tree]);
 		
 		%% both aren't standalone
