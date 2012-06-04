@@ -92,20 +92,28 @@ render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, Stat
 		%% first and second tags are standalone. Just ignore them
 		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
 			render_inverse_parts(Key, State, [Tree]);
-		
 		{[[], {nl, _} | Tree], [{ws, _}]} ->
 			render_inverse_parts(Key, State, [Tree]);
-		
 		{[[{ws, _}], {nl, _} | Tree], []} ->
 			render_inverse_parts(Key, State, [Tree]);
-		
 		{[[], {nl, _} | Tree], []} ->
 			render_inverse_parts(Key, State, [Tree]);
+		
+		%% first is standalone, second is not
+		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
+			[render_inverse_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+		{[[], {nl, _} | Tree], EPrefix} ->
+			[render_inverse_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+		
+		%% first is not, second is standalone
+		{[SPostfix | Tree], [{ws, _}]} ->
+			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree])];
+		{[SPostfix | Tree], []} ->
+			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree])];
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
 			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix, ENl];
-		
 		{[], EPrefix} ->
 			[SPrefix, render_inverse_parts(Key, State, [[EPrefix]]), EPostfix, ENl]
 	end;
@@ -114,20 +122,28 @@ render_standalone({block, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State)
 		%% first and second tags are standalone. Just ignore them
 		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
 			render_block_parts(Key, State, [Tree]);
-		
 		{[[], {nl, _} | Tree], [{ws, _}]} ->
 			render_block_parts(Key, State, [Tree]);
-		
 		{[[{ws, _}], {nl, _} | Tree], []} ->
 			render_block_parts(Key, State, [Tree]);
-		
 		{[[], {nl, _} | Tree], []} ->
 			render_block_parts(Key, State, [Tree]);
+		
+		%% first is standalone, second is not
+		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
+			[render_block_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+		{[[], {nl, _} | Tree], EPrefix} ->
+			[render_block_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+		
+		%% first is not, second is standalone
+		{[SPostfix | Tree], [{ws, _}]} ->
+			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree])];
+		{[SPostfix | Tree], []} ->
+			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree])];
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
 			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix, ENl];
-		
 		{[], EPrefix} ->
 			[SPrefix, render_block_parts(Key, State, [[EPrefix]]), EPostfix, ENl]
 	end.
