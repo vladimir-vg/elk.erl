@@ -55,6 +55,10 @@ render_iolist([[{var, Key} | Line] | Tree], State, Acc) ->
 render_iolist([[{raw_var, Key} | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, [render_raw_var(Key, State) | Acc]);
 
+render_iolist([[self | Line] | Tree], State, Acc) ->
+	Text = stringify(hd(State#state.contexts), true),
+	render_iolist([Line | Tree], State, [Text | Acc]);
+
 render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
 	render_iolist([Line | Tree], State, [render_inverse_parts(Key, State, [[EPrefix], SubTree]) | Acc]);
 
