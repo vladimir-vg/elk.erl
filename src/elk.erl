@@ -146,12 +146,17 @@ render_inverse_parts(Key, State, Trees) ->
 			end, Trees)
 	end.
 
-%% this differs from render_inverse, it takes list trees.
-%% this was made to prevent several lookups for spostfix, subtree, and eprefix parts
 render_block_parts(Key, State, Trees) ->
 	Value = get(Key, State),
 	case ?is_falsy(Value) of
 		true -> <<>>;
+		false when is_list(Value) ->
+			lists:map(fun (V) ->
+				NewContexts = [V | State#state.contexts],
+				lists:map(fun (Tree) ->
+					render_iolist(Tree, State#state{contexts=NewContexts}, [])
+				end, Trees)
+			end, Value);
 		false ->
 			NewContexts = [Value | State#state.contexts],
 			lists:map(fun (Tree) ->
@@ -185,6 +190,7 @@ get_value(Key, {Kind, Context}) ->
 	end,
 	Module = proplists:get_value(Kind, Contexts),
 	Module:get(Key, Context);
+
 get_value(_Key, _Any) ->
 	undefined.
 
