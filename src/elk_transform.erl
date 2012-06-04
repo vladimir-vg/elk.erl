@@ -47,7 +47,9 @@ transform('template', Nodes, _Index) ->
 		[] -> FirstLine;
 		[Lines] -> FirstLine ++ lists:flatten(Lines)
 	end,
-	[indent | third_transformation(second_transform(NewNodes, [], []), [], [], [])];
+	Tree1 = second_transform(NewNodes, [], []),
+	Tree2 = third_transformation(Tree1, [], [], []),
+	[indent | Tree2];
 transform(_Kind, Node, _Index) ->
 	Node.
 
