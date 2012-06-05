@@ -93,9 +93,9 @@ render_standalone({Kind, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) 
 			render_block_parts(Kind, Key, State, [Tree]);
 		{[[], {nl, _} | Tree], [indent, [{ws, _}]]} ->
 			render_block_parts(Kind, Key, State, [Tree]);
-		{[[{ws, _}], {nl, _} | Tree], [indent]} ->
+		{[[{ws, _}], {nl, _} | Tree], [indent, []]} ->
 			render_block_parts(Kind, Key, State, [Tree]);
-		{[[], {nl, _} | Tree], [indent]} ->
+		{[[], {nl, _} | Tree], [indent, []]} ->
 			render_block_parts(Kind, Key, State, [Tree]);
 		
 		%% first is standalone, second is not
@@ -107,7 +107,7 @@ render_standalone({Kind, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) 
 		%% first is not, second is standalone
 		{[SPostfix | Tree], [indent, [{ws, _}]]} ->
 			[SPrefix, render_block_parts(Kind, Key, State, [[SPostfix], Tree])];
-		{[SPostfix | Tree], [indent]} ->
+		{[SPostfix | Tree], [indent, []]} ->
 			[SPrefix, render_block_parts(Kind, Key, State, [[SPostfix], Tree])];
 		
 		%% both aren't standalone
