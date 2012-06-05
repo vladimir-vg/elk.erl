@@ -49,7 +49,7 @@ transform('template', Nodes, _Index) ->
 	end,
 	Tree1 = second_transform(NewNodes, [], []),
 	Tree2 = third_transformation(Tree1, [], [], []),
-	[indent | Tree2];
+	[indent | Tree2] ++ [eof];
 transform(_Kind, Node, _Index) ->
 	Node.
 
@@ -101,7 +101,12 @@ third_transformation(
 	[{block_start, Key, Prefix} | Expected],
 	Acc
 ) ->
-	Node = {block, Key, lists:reverse(Acc), lists:reverse(LineAcc)},
+	Node = case Acc of
+		[indent | Rest] ->
+			{block, Key, lists:reverse(Rest), [indent, lists:reverse(LineAcc)]};
+		Rest ->
+			{block, Key, lists:reverse(Rest), [lists:reverse(LineAcc)]}
+	end,
 	NewLineAcc = [Node | Prefix],
 	{NewLineAcc, LineNodes, Nodes, Expected};
 
@@ -111,7 +116,12 @@ third_transformation(
 	[{inverse_start, Key, Prefix} | Expected],
 	Acc
 ) ->
-	Node = {inverse, Key, lists:reverse(Acc), lists:reverse(LineAcc)},
+	Node = case Acc of
+		[indent | Rest] ->
+			{inverse, Key, lists:reverse(Rest), [indent, lists:reverse(LineAcc)]};
+		Rest ->
+			{inverse, Key, lists:reverse(Rest), [lists:reverse(LineAcc)]}
+	end,
 	NewLineAcc = [Node | Prefix],
 	{NewLineAcc, LineNodes, Nodes, Expected};
 

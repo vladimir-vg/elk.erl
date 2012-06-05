@@ -31,13 +31,13 @@ render_iolist([indent, [Node, {ws, Postfix}], {nl, Nl} | Tree], State, Acc) ->
 render_iolist([indent, [Node], {nl, Nl} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, Nl, State) | Acc]);
 
-render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}] | Tree], State, Acc) ->
+render_iolist([indent, [{ws, Prefix}, Node, {ws, Postfix}], eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, Prefix, Postfix, <<>>, State) | Acc]);
-render_iolist([indent, [{ws, Prefix}, Node] | Tree], State, Acc) ->
+render_iolist([indent, [{ws, Prefix}, Node], eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, Prefix, <<>>, <<>>, State) | Acc]);
-render_iolist([indent, [Node, {ws, Postfix}] | Tree], State, Acc) ->
+render_iolist([indent, [Node, {ws, Postfix}], eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, Postfix, <<>>, State) | Acc]);
-render_iolist([indent, [Node] | Tree], State, Acc) ->
+render_iolist([indent, [Node], eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, <<>>, State) | Acc]);
 
 render_iolist([{nl, Nl} | Tree], State, Acc) ->
@@ -59,13 +59,12 @@ render_iolist([[self | Line] | Tree], State, Acc) ->
 	Text = stringify(hd(State#state.contexts), true),
 	render_iolist([Line | Tree], State, [Text | Acc]);
 
-render_iolist([[{inverse, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
-	render_iolist([Line | Tree], State, [render_inverse_parts(Key, State, [[EPrefix], SubTree]) | Acc]);
-
-render_iolist([[{block, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
-	Result = render_block_parts(Key, State, [SubTree, [EPrefix]]),
+render_iolist([[{Kind, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
 	render_iolist([Line | Tree], State, [Result | Acc]);
 
+render_iolist([eof | Tree], State, Acc) ->
+	render_iolist(Tree, State, Acc);
 render_iolist([indent | Tree], State, Acc) ->
 	render_iolist(Tree, State, [State#state.indent | Acc]);
 render_iolist([[] | Tree], State, Acc) ->
@@ -87,65 +86,35 @@ render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
 		<<>> -> <<>>;
 		Text -> [Prefix, Text, Postfix, Nl]
 	end;
-render_standalone({inverse, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
+render_standalone({Kind, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
-		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
-			render_inverse_parts(Key, State, [Tree]);
-		{[[], {nl, _} | Tree], [{ws, _}]} ->
-			render_inverse_parts(Key, State, [Tree]);
-		{[[{ws, _}], {nl, _} | Tree], []} ->
-			render_inverse_parts(Key, State, [Tree]);
-		{[[], {nl, _} | Tree], []} ->
-			render_inverse_parts(Key, State, [Tree]);
+		{[[{ws, _}], {nl, _} | Tree], [indent, [{ws, _}]]} ->
+			render_block_parts(Kind, Key, State, [Tree]);
+		{[[], {nl, _} | Tree], [indent, [{ws, _}]]} ->
+			render_block_parts(Kind, Key, State, [Tree]);
+		{[[{ws, _}], {nl, _} | Tree], [indent]} ->
+			render_block_parts(Kind, Key, State, [Tree]);
+		{[[], {nl, _} | Tree], [indent]} ->
+			render_block_parts(Kind, Key, State, [Tree]);
 		
 		%% first is standalone, second is not
 		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
-			[render_inverse_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+			[render_block_parts(Kind, Key, State, [Tree, EPrefix]), EPostfix, ENl];
 		{[[], {nl, _} | Tree], EPrefix} ->
-			[render_inverse_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
+			[render_block_parts(Kind, Key, State, [Tree, EPrefix]), EPostfix, ENl];
 		
 		%% first is not, second is standalone
-		{[SPostfix | Tree], [{ws, _}]} ->
-			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree])];
-		{[SPostfix | Tree], []} ->
-			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree])];
+		{[SPostfix | Tree], [indent, [{ws, _}]]} ->
+			[SPrefix, render_block_parts(Kind, Key, State, [[SPostfix], Tree])];
+		{[SPostfix | Tree], [indent]} ->
+			[SPrefix, render_block_parts(Kind, Key, State, [[SPostfix], Tree])];
 		
 		%% both aren't standalone
 		{[SPostfix | Tree], EPrefix} ->
-			[SPrefix, render_inverse_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix, ENl];
+			[SPrefix, render_block_parts(Kind, Key, State, [[SPostfix], Tree, EPrefix]), EPostfix, ENl];
 		{[], EPrefix} ->
-			[SPrefix, render_inverse_parts(Key, State, [[EPrefix]]), EPostfix, ENl]
-	end;
-render_standalone({block, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
-	case {SubTree, EPrefix} of
-		%% first and second tags are standalone. Just ignore them
-		{[[{ws, _}], {nl, _} | Tree], [{ws, _}]} ->
-			render_block_parts(Key, State, [Tree]);
-		{[[], {nl, _} | Tree], [{ws, _}]} ->
-			render_block_parts(Key, State, [Tree]);
-		{[[{ws, _}], {nl, _} | Tree], []} ->
-			render_block_parts(Key, State, [Tree]);
-		{[[], {nl, _} | Tree], []} ->
-			render_block_parts(Key, State, [Tree]);
-		
-		%% first is standalone, second is not
-		{[[{ws, _}], {nl, _} | Tree], EPrefix} ->
-			[render_block_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
-		{[[], {nl, _} | Tree], EPrefix} ->
-			[render_block_parts(Key, State, [Tree, [EPrefix]]), EPostfix, ENl];
-		
-		%% first is not, second is standalone
-		{[SPostfix | Tree], [{ws, _}]} ->
-			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree])];
-		{[SPostfix | Tree], []} ->
-			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree])];
-		
-		%% both aren't standalone
-		{[SPostfix | Tree], EPrefix} ->
-			[SPrefix, render_block_parts(Key, State, [[SPostfix], Tree, [EPrefix]]), EPostfix, ENl];
-		{[], EPrefix} ->
-			[SPrefix, render_block_parts(Key, State, [[EPrefix]]), EPostfix, ENl]
+			[SPrefix, render_block_parts(Kind, Key, State, [EPrefix]), EPostfix, ENl]
 	end.
 
 render_var(Key, State) ->
@@ -156,7 +125,7 @@ render_raw_var(Key, State) ->
 	Value = get(Key, State),
 	stringify(Value, false).
 
-render_inverse_parts(Key, State, Trees) ->
+render_block_parts(inverse, Key, State, Trees) ->
 	Value = get(Key, State),
 	case ?is_falsy(Value) of
 		false -> <<>>;
@@ -164,9 +133,8 @@ render_inverse_parts(Key, State, Trees) ->
 			lists:map(fun (Tree) ->
 				render_iolist(Tree, State, [])
 			end, Trees)
-	end.
-
-render_block_parts(Key, State, Trees) ->
+	end;
+render_block_parts(block, Key, State, Trees) ->
 	Value = get(Key, State),
 	case ?is_falsy(Value) of
 		true -> <<>>;
