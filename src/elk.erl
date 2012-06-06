@@ -120,19 +120,19 @@ render_iolist([], _State, Acc) ->
 
 render_standalone(comment, _Prefix, _Postfix, _Nl, _State) ->
 	<<>>;
-render_standalone({text, Text}, Prefix, Postfix, Nl, _State) ->
-	[Prefix, Text, Postfix, Nl];
+render_standalone({text, Text}, Prefix, Postfix, Nl, State) ->
+	[State#state.indent, Prefix, Text, Postfix, Nl];
 render_standalone({var, Key}, Prefix, Postfix, Nl, State) ->
 	case render_var(Key, State) of
 		<<>> -> <<>>;
-		Text -> [Prefix, Text, Postfix, Nl]
+		Text -> [State#state.indent, Prefix, Text, Postfix, Nl]
 	end;
 render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
 	case render_raw_var(Key, State) of
 		<<>> -> <<>>;
-		Text -> [Prefix, Text, Postfix, Nl]
+		Text -> [State#state.indent, Prefix, Text, Postfix, Nl]
 	end;
-render_standalone({partial, Key}, Prefix, Postfix, Nl, State) ->
+render_standalone({partial, Key}, Prefix, Postfix, _Nl, State) ->
 	Indent = State#state.indent,
 	case render_partial(Key, State#state{indent=[Indent, Prefix]}) of
 		<<>> -> <<>>;

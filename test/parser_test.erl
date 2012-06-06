@@ -12,7 +12,7 @@ basic_test() ->
 
 comment_test() ->
 	?assertEqual(
-		[indent, [{ws, <<" ">>}, comment, {ws, <<" ">>}], {nl, <<"\r\n">>}, indent, eof],
+		[indent, [{ws, <<" ">>}, comment, {ws, <<" ">>}], {nl, <<"\r\n">>}, eof],
 		elk_parser:parse(" {{! ololo! \r\n\n huh! %^&*() }} \r\n")).
 
 block_test() ->
@@ -36,7 +36,7 @@ standalone_block_tag_test() ->
 				[[{ws, <<" ">>}], {nl, <<"\n">>}],
 				[indent, [{text, <<" text ">>}]]},
 			{ws, <<" ">>}],
-		{nl, <<"\n">>}, indent, eof],
+		{nl, <<"\n">>}, eof],
 		elk_parser:parse("\r\n {{^ key }} \n text {{/ key }} \n")).
 
 nested_blocks_test() ->

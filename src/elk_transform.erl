@@ -49,7 +49,10 @@ transform('template', Nodes, _Index) ->
 	end,
 	Tree1 = second_transform(NewNodes, [], []),
 	Tree2 = third_transformation(Tree1, [], [], []),
-	[indent | Tree2] ++ [eof];
+	case lists:reverse(Tree2) of
+		[indent | Rev] -> [indent | lists:reverse(Rev)] ++ [eof];
+		_ -> [indent | Tree2] ++ [eof]
+	end;
 transform(_Kind, Node, _Index) ->
 	Node.
 
