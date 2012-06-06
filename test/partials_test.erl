@@ -6,8 +6,8 @@
 -compile(export_all).
 
 basic_test() ->
-	Template1 = elk:compile(" Hello {{> world }}"),
-	Template2 = elk:compile("World!"),
+	{ok, Template1} = elk:compile(" Hello {{> world }}"),
+	{ok, Template2} = elk:compile("World!"),
 	Context = {proplist, []},
 	Partials = {proplist, [{<<"world">>, Template2}]},
 	?assertEqual(

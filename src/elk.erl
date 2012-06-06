@@ -8,7 +8,7 @@
 
 compile(Source) ->
 	Tree = elk_parser:parse(Source),
-	{elk_template, Tree}.
+	{ok, {elk_template, Tree}}.
 
 render({elk_template, Tree}) ->
 	render({elk_template, Tree}, {proplist, []}).
