@@ -105,6 +105,10 @@ render_iolist([[self | Line] | Tree], State, Acc) ->
 	Text = stringify(hd(State#state.contexts), true),
 	render_iolist([Line | Tree], State, [Text | Acc]);
 
+render_iolist([[{partial, Key} | Line] | Tree], State, Acc) ->
+	Text = render_partial(Key, State),
+	render_iolist([Line | Tree], State, [Text | Acc]);
+
 render_iolist([eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, Acc);
 render_iolist([indent | Tree], State, Acc) ->
@@ -166,6 +170,14 @@ render_var(Key, State) ->
 render_raw_var(Key, State) ->
 	Value = get(Key, State),
 	stringify(Value, false).
+
+render_partial(Key, State) ->
+	Value = get_value(Key, State#state.partials),
+	case Value of
+		{elk_template, SubTree} ->
+			render_iolist(SubTree, State, []);
+		_ -> <<>>
+	end.
 
 render_block_parts(inverse, Key, State, Trees) ->
 	Value = get(Key, State),
