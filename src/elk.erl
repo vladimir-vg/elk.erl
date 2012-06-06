@@ -40,6 +40,52 @@ render_iolist([indent, [Node, {ws, Postfix}], eof | Tree], State, Acc) ->
 render_iolist([indent, [Node], eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, [render_standalone(Node, <<>>, <<>>, <<>>, State) | Acc]);
 
+%% block tags
+%% first is standalone, second is not
+render_iolist([indent, [{ws, _}, {Kind, Key, [[{ws, _}], {nl, _} | SubTree], EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+render_iolist([indent, [{Kind, Key, [[{ws, _}], {nl, _} | SubTree], EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+render_iolist([indent, [{ws, _}, {Kind, Key, [[], {nl, _} | SubTree], EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+render_iolist([indent, [{Kind, Key, [[], {nl, _} | SubTree], EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+
+%% first is not, second is standalone
+render_iolist([[{Kind, Key, SubTree, [indent, [{ws, _}]]}, {ws, _}], {nl, _} | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, []]}, {ws, _}], {nl, _} | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, [{ws, _}]]}], {nl, _} | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, []]}], {nl, _} | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, [{ws, _}]]}, {ws, _}], eof | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, []]}, {ws, _}], eof | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, [{ws, _}]]}], eof | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+render_iolist([[{Kind, Key, SubTree, [indent, []]}], eof | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree]),
+	render_iolist(Tree, State, [Result | Acc]);
+
+%% both aren't standalone
+render_iolist([[{Kind, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
+	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
+	render_iolist([Line | Tree], State, [Result | Acc]);
+
 render_iolist([{nl, Nl} | Tree], State, Acc) ->
 	render_iolist(Tree, State, [Nl | Acc]);
 render_iolist([[comment | Line] | Tree], State, Acc) ->
@@ -58,10 +104,6 @@ render_iolist([[{raw_var, Key} | Line] | Tree], State, Acc) ->
 render_iolist([[self | Line] | Tree], State, Acc) ->
 	Text = stringify(hd(State#state.contexts), true),
 	render_iolist([Line | Tree], State, [Text | Acc]);
-
-render_iolist([[{Kind, Key, SubTree, EPrefix} | Line] | Tree], State, Acc) ->
-	Result = render_block_parts(Kind, Key, State, [SubTree, EPrefix]),
-	render_iolist([Line | Tree], State, [Result | Acc]);
 
 render_iolist([eof | Tree], State, Acc) ->
 	render_iolist(Tree, State, Acc);
