@@ -20,3 +20,7 @@ sections_test_() ->
 inverted_test_() ->
 	Tests = test_helpers:read_spec("../spec/specs/inverted.json"),
 	lists:map(fun test_helpers:construct_test/1, Tests).
+
+partials_test_() ->
+	Tests = test_helpers:read_spec("../spec/specs/partials.json"),
+	lists:map(fun test_helpers:construct_test/1, Tests).
