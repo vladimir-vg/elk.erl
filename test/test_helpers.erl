@@ -26,5 +26,9 @@ construct_test({proplist, Args}) ->
 	Data = proplists:get_value(<<"data">>, Args),
 	Source = proplists:get_value(<<"template">>, Args),
 	Expected = proplists:get_value(<<"expected">>, Args),
+	{proplist, Partials} = proplists:get_value(<<"partials">>, Args, {proplist, []}),
+	CompiledPartials = lists:map(fun ({Key, Source}) ->
+		{Key, elk:compile(Source)}
+	end, Partials),
 	Template = elk:compile(Source),
-	{Name, ?_assertEqual(Expected, elk:render(Template, Data))}.
+	{Name, ?_assertEqual(Expected, elk:render(Template, Data, {proplist, CompiledPartials}))}.
