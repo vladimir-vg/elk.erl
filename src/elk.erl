@@ -132,6 +132,12 @@ render_standalone({raw_var, Key}, Prefix, Postfix, Nl, State) ->
 		<<>> -> <<>>;
 		Text -> [Prefix, Text, Postfix, Nl]
 	end;
+render_standalone({partial, Key}, Prefix, Postfix, Nl, State) ->
+	Indent = State#state.indent,
+	case render_partial(Key, State#state{indent=[Indent, Prefix]}) of
+		<<>> -> <<>>;
+		Text -> [Text, Postfix]
+	end;
 render_standalone({Kind, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) ->
 	case {SubTree, EPrefix} of
 		%% first and second tags are standalone. Just ignore them
