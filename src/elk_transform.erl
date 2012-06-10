@@ -7,12 +7,12 @@
 
 transform(self, _Node, _Index) ->
 	self;
-transform(block_start, Node, _Index) ->
-	{block_start, ?key(Node)};
-transform(inverse_start, Node, _Index) ->
-	{inverse_start, ?key(Node)};
-transform(block_end, Node, _Index) ->
-	{block_end, ?key(Node)};
+transform(block_start, Node, Index) ->
+	{block_start, ?key(Node), Index};
+transform(inverse_start, Node, Index) ->
+	{inverse_start, ?key(Node), Index};
+transform(block_end, Node, Index) ->
+	{block_end, ?key(Node), Index};
 transform(raw_var1, Node, _Index) ->
 	{raw_var, ?key(Node)};
 transform(raw_var2, Node, _Index) ->
@@ -85,23 +85,23 @@ third_transformation([[] | Nodes], LineAcc, Expected, Acc) ->
 %% take first tokens from line,
 %% push tag to expected-list
 %% recursively transform the rest until found enclosing tag
-third_transformation([[{block_start, Key} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
+third_transformation([[{block_start, Key, Index} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
 	{NewLineAcc, NewLineNodes, NewNodes, NewExpected} =
-		third_transformation([LineNodes | Nodes], [], [{block_start, Key, LineAcc} | Expected], []),
+		third_transformation([LineNodes | Nodes], [], [{block_start, Key, LineAcc, Index} | Expected], []),
 	third_transformation([NewLineNodes | NewNodes], NewLineAcc, NewExpected, Acc);
 
-third_transformation([[{inverse_start, Key} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
+third_transformation([[{inverse_start, Key, Index} | LineNodes] | Nodes], LineAcc, Expected, Acc) ->
 	{NewLineAcc, NewLineNodes, NewNodes, NewExpected} =
-		third_transformation([LineNodes | Nodes], [], [{inverse_start, Key, LineAcc} | Expected], []),
+		third_transformation([LineNodes | Nodes], [], [{inverse_start, Key, LineAcc, Index} | Expected], []),
 	third_transformation([NewLineNodes | NewNodes], NewLineAcc, NewExpected, Acc);
 
 %% found matched block tag,
 %% put tree acc into block tag,
 %% remove tag from expected-list
 third_transformation(
-	[[{block_end, Key} | LineNodes] | Nodes],
+	[[{block_end, Key, _Index1} | LineNodes] | Nodes],
 	LineAcc,
-	[{block_start, Key, Prefix} | Expected],
+	[{block_start, Key, Prefix, _Index2} | Expected],
 	Acc
 ) ->
 	Node = case Acc of
@@ -114,9 +114,9 @@ third_transformation(
 	{NewLineAcc, LineNodes, Nodes, Expected};
 
 third_transformation(
-	[[{block_end, Key} | LineNodes] | Nodes],
+	[[{block_end, Key, _Index1} | LineNodes] | Nodes],
 	LineAcc,
-	[{inverse_start, Key, Prefix} | Expected],
+	[{inverse_start, Key, Prefix, _Index2} | Expected],
 	Acc
 ) ->
 	Node = case Acc of
@@ -127,6 +127,32 @@ third_transformation(
 	end,
 	NewLineAcc = [Node | Prefix],
 	{NewLineAcc, LineNodes, Nodes, Expected};
+
+%% keys doesn't match, tags unbalanced
+third_transformation(
+	[[{block_end, Key1, {{line, ELine}, {column, EColumn}}} | _LineNodes] | _Nodes],
+	_LineAcc,
+	[{inverse_start, Key2, _Prefix, {{line, SLine}, {column, SColumn}}} | _Expected],
+	_Acc
+) ->
+	Message = lists:concat([
+		"Expected end for '^", Key2, "' (", SLine, " line ", SColumn, " column)",
+		" but found '/", Key1,
+		"' (", ELine, " line ", EColumn, " column)"
+	]),
+	erlang:error(iolist_to_binary(Message));
+third_transformation(
+	[[{block_end, Key1, {{line, ELine}, {column, EColumn}}} | _LineNodes] | _Nodes],
+	_LineAcc,
+	[{block_start, Key2, _Prefix, {{line, SLine}, {column, SColumn}}} | _Expected],
+	_Acc
+) ->
+	Message = lists:concat([
+		"Expected end for '#", Key2, "' (", SLine, " line ", SColumn, " column)",
+		" but found '/", Key1,
+		"' (", ELine, " line ", EColumn, " column)"
+	]),
+	erlang:error(iolist_to_binary(Message));
 
 %% another usual node, just skip it.
 third_transformation([[LNode | LNodes] | Nodes], LineAcc, Expected, Acc) ->

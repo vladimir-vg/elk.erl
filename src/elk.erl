@@ -7,8 +7,11 @@
 -record(state, {top, contexts, partials, indent}).
 
 compile(Source) ->
-	Tree = elk_parser:parse(Source),
-	{ok, {elk_template, Tree}}.
+	try elk_parser:parse(Source) of
+		Tree -> {ok, {elk_template, Tree}}
+	catch
+		error:Reason -> {error, Reason}
+	end.
 
 render({elk_template, Tree}) ->
 	render({elk_template, Tree}, {proplist, []}).
