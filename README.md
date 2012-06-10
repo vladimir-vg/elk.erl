@@ -8,7 +8,8 @@ This turned me to start project from scratch.
 
 elk.erl almost fully responds to [mustache specs](https://github.com/mustache/spec).
 It doesn't support custom delimeters (`{{=<% %>=}}`) and lambdas (as described in specs).
-Everything other supported as well.
+Everything other supported as well
+(including partials, dotted keys `{{person.name}}` and dot-tag `{{.}}`).
 
 Using elk.erl you can pass function to evaluate, instead of actual value.
 But this is not actually "lambdas" as described in specs.
@@ -71,12 +72,16 @@ By default only one datastructure is defined:
 {elk, [{contexts, [{proplist, elk_proplist_context}]}]}
 ```
 
+Context module `get/2` function should return `undefined` if no value found for
+given key and value otherwise.
+
 # Contribution
 
 I'm (Gordeev Vladimir) not a native english speaker, so very possible I done
 a lot of grammar and lexical mistakes. Feel free to send a pull-request.
 
-Also, if you think that some
+Also, if you think that some context datastructures should be available by
+default, you also can send a pull-request.
 
 # License
 
