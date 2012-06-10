@@ -1,6 +1,6 @@
 {application, elk, [
-    {description, "Erlang Mustache-like template engine"},
-    {vsn, "0.0.0"},
+    {description, "Mustache template engine implementation"},
+    {vsn, "0.1.0"},
     {applications, [kernel, stdlib]},
     {registered, []},
     {env, []}
