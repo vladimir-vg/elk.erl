@@ -1,7 +1,7 @@
 # Background
 
 Initially this project was started as [walrus](https://github.com/devinus/walrus)
-improvement, but then I (@vladimir-vg) decided to use [neotoma](https://github.com/seancribbs/neotoma).
+improvement, but then I (Gordeev Vladimir) decided to use [neotoma](https://github.com/seancribbs/neotoma).
 This turned me to start project from scratch.
 
 # Features and compatability
@@ -38,6 +38,45 @@ Hello Chris
 You have just won 10000 dollars!
 Well, 6000.0 dollars, after taxes.
 ```
+
+# Context format
+
+By default you can pass your mappings as proplists (`{proplist, YourPropList}`).
+Also you can use other data structures. To do so you should write module that
+implements specific interface and put module name into config.
+
+For example, if you want use erlang `dict` datastructure:
+
+```erlang
+-module(elk_dict_context).
+
+-export([get/2]).
+
+get(Key, Dict) ->
+    case dict:is_key(Key, Dict) of
+        false -> undefined;
+        true -> dict:fetch(Key, Dict)
+    end.
+```
+
+and put in config:
+```
+{elk, [{contexts, [{proplist, elk_proplist_context}, {dict, elk_dict_context}]}]}
+```
+
+Now you can pass dicts as follows: `elk:render(Template, {dict, YourDict})`.
+
+By default only one datastructure is defined:
+```
+{elk, [{contexts, [{proplist, elk_proplist_context}]}]}
+```
+
+# Contribution
+
+I'm (Gordeev Vladimir) not a native english speaker, so very possible I done
+a lot of grammar and lexical mistakes. Feel free to send a pull-request.
+
+Also, if you think that some
 
 # License
 
