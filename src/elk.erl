@@ -223,6 +223,13 @@ get(value, Key, State) ->
 			Fun(State);
 		Any -> Any
 	end;
+get(toplevel_value, Key, State) ->
+	Value = get_value(Key, State#state.top),
+	case Value of
+		Fun when is_function(Fun, 1) ->
+			Fun(State);
+		Any -> Any
+	end;
 get(partial, Key, State) ->
 	get_value(Key, State#state.partials).
 
