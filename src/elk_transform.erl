@@ -154,6 +154,30 @@ third_transformation(
 	]),
 	erlang:error(iolist_to_binary(Message));
 
+%% end of block expected, but not found
+third_transformation(
+	[],
+	_LineAcc,
+	[{block_start, Key, _Prefix, {{line, SLine}, {column, SColumn}}} | _Expected],
+	_Acc
+) ->
+	Message = lists:concat([
+		"Expected end for '#", Key, "' (", SLine, " line ", SColumn, " column)",
+		" but couldn't find '/", Key, "'"
+	]),
+	erlang:error(iolist_to_binary(Message));
+third_transformation(
+	[],
+	_LineAcc,
+	[{inverse_start, Key, _Prefix, {{line, SLine}, {column, SColumn}}} | _Expected],
+	_Acc
+) ->
+	Message = lists:concat([
+		"Expected end for '^", Key, "' (", SLine, " line ", SColumn, " column)",
+		" but couldn't find '/", Key, "'"
+	]),
+	erlang:error(iolist_to_binary(Message));
+
 %% another usual node, just skip it.
 third_transformation([[LNode | LNodes] | Nodes], LineAcc, Expected, Acc) ->
 	third_transformation([LNodes | Nodes], [LNode | LineAcc], Expected, Acc);
