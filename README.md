@@ -8,6 +8,7 @@ This turned me to start project from scratch.
 
 elk.erl almost fully responds to [mustache specs](https://github.com/mustache/spec).
 It doesn't support custom delimeters (`{{=<% %>=}}`) and lambdas (as described in specs).
+Everything other supported as well.
 
 Using elk.erl you can pass function to evaluate, instead of actual value.
 But this is not actually "lambdas" as described in specs.
