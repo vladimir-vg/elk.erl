@@ -1,7 +1,7 @@
 -module(elk).
 -author("Gordeev Vladimir <gordeev.vladimir.v@gmail.com>").
 
--export([compile/1, get_value/2, render/1, render/2, render/3]).
+-export([compile/1, get/3, render/1, render/2, render/3]).
 
 -define(is_falsy(V), ((V =:= undefined) or (V =:= false) or (V =:= []))).
 -record(state, {top, contexts, partials, indent}).
@@ -173,15 +173,15 @@ render_standalone({Kind, Key, SubTree, EPrefix}, SPrefix, EPostfix, ENl, State) 
 	end.
 
 render_var(Key, State) ->
-	Value = get(Key, State),
+	Value = get(value, Key, State),
 	stringify(Value, true).
 
 render_raw_var(Key, State) ->
-	Value = get(Key, State),
+	Value = get(value, Key, State),
 	stringify(Value, false).
 
 render_partial(Key, State) ->
-	Value = get_value(Key, State#state.partials),
+	Value = get(partial, Key, State),
 	case Value of
 		{elk_template, SubTree} ->
 			render_iolist(SubTree, State, []);
@@ -189,7 +189,7 @@ render_partial(Key, State) ->
 	end.
 
 render_block_parts(inverse, Key, State, Trees) ->
-	Value = get(Key, State),
+	Value = get(value, Key, State),
 	case ?is_falsy(Value) of
 		false -> <<>>;
 		true ->
@@ -198,7 +198,7 @@ render_block_parts(inverse, Key, State, Trees) ->
 			end, Trees)
 	end;
 render_block_parts(block, Key, State, Trees) ->
-	Value = get(Key, State),
+	Value = get(value, Key, State),
 	case ?is_falsy(Value) of
 		true -> <<>>;
 		false when is_list(Value) ->
@@ -215,16 +215,16 @@ render_block_parts(block, Key, State, Trees) ->
 			end, Trees)
 	end.
 
-get(Key, State) ->
+get(value, Key, State) ->
 	Contexts = State#state.contexts,
 	Value = get_from_contexts(Key, Contexts),
 	case Value of
 		Fun when is_function(Fun, 1) ->
-			Fun(State#state.top);
-		Fun when is_function(Fun, 2) ->
-			Fun(State#state.top, State#state.partials);
+			Fun(State);
 		Any -> Any
-	end.
+	end;
+get(partial, Key, State) ->
+	get_value(Key, State#state.partials).
 
 get_value([], _Context) ->
 	undefined;

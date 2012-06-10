@@ -36,8 +36,8 @@ escaped_var_test() ->
 		elk:render(Template, Context)).
 
 func_var_test() ->
-	Fun = fun (Context) ->
-		Value = elk:get_value(<<"value">>, Context),
+	Fun = fun (State) ->
+		Value = elk:get(value, <<"value">>, State),
 		["(", Value, ")"]
 	end,
 	Context = {proplist, [{<<"value">>, "World"}, {<<"parenthesed">>, Fun}]},
