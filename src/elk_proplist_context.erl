@@ -4,4 +4,4 @@
 -export([get/2]).
 
 get(Key, Proplist) ->
-	proplists:get_value(Key, Proplist).
+    proplists:get_value(Key, Proplist).
