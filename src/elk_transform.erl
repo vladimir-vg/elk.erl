@@ -178,6 +178,19 @@ third_transformation(
 	]),
 	erlang:error(iolist_to_binary(Message));
 
+%% found end of block, but no end expected
+third_transformation(
+	[[{block_end, Key, {{line, ELine}, {column, EColumn}}} | _LineNodes] | _Nodes],
+	_LineAcc,
+	[],
+	_Acc
+) ->
+	Message = lists:concat([
+		"Found end '/", Key, "' (", ELine, " line ", EColumn, " column)",
+		" but not expected"
+	]),
+	erlang:error(iolist_to_binary(Message));
+
 %% another usual node, just skip it.
 third_transformation([[LNode | LNodes] | Nodes], LineAcc, Expected, Acc) ->
 	third_transformation([LNodes | Nodes], [LNode | LineAcc], Expected, Acc);
