@@ -1,4 +1,4 @@
-Build status: {<img src="https://secure.travis-ci.org/vladimir-vg/elk.erl.png"/>}[http://travis-ci.org/vladimir-vg/elk.erl]
+Build status: ![https://secure.travis-ci.org/vladimir-vg/elk.erl.png](http://travis-ci.org/vladimir-vg/elk.erl)
 
 # Background
 
