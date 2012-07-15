@@ -1,3 +1,5 @@
+Build status: {<img src="https://secure.travis-ci.org/vladimir-vg/elk.erl.png"/>}[http://travis-ci.org/vladimir-vg/elk.erl]
+
 # Background
 
 Initially this project was started as [walrus](https://github.com/devinus/walrus)
