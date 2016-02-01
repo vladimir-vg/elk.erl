@@ -8,13 +8,13 @@ compile:
 	@$(REBAR) compile
 
 test_deps:
-	@$(REBAR) --config test.config get-deps
+	@$(REBAR) get-deps
 
 test_compile:
-	@$(REBAR) --config test.config compile
+	@$(REBAR) compile
 
 test: test_deps test_compile
-	@$(REBAR) --config test.config eunit
+	@$(REBAR) eunit
 
 clean:
 	@$(REBAR) clean
